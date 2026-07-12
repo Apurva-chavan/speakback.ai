@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpeakBack — AI Speaking Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+
+  <nav class="top-nav">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      </div>
+      <span class="wordmark nav-wordmark">SpeakBack</span>
+    </div>
+    <div class="nav-right">
+      <span class="nav-badge">Free · Powered by Ollama</span>
+      <button class="theme-toggle" id="theme-toggle-setup">
+        <span class="t-icon">🌙</span><span class="t-label">Dark</span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <span class="hero-dot"></span>
+      AI Speaking Coach
+    </div>
+    <h1 class="hero-title">Practice speaking.<br><em>Get better fast.</em></h1>
+    <p class="hero-sub">Alex — your personal AI coach — listens, teaches, corrects, and gives you a full report on fluency, grammar, and confidence.</p>
+    <div class="hero-stats">
+      <div class="hstat"><span class="hstat-val">6</span><span class="hstat-label">Modes</span></div>
+      <div class="hstat-div"></div>
+      <div class="hstat"><span class="hstat-val">∞</span><span class="hstat-label">Practice sessions</span></div>
+      <div class="hstat-div"></div>
+      <div class="hstat"><span class="hstat-val">100%</span><span class="hstat-label">Free</span></div>
+    </div>
+  </div>
+
+  <div class="topic-grid">
+    <button class="topic-card" data-topic="general">
+      <div class="card-top">
+        <div class="card-icon-wrap c-general">💬</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Everyday</span>
+      <h3>General conversation</h3>
+      <p>Casual chat with inline grammar & vocab coaching.</p>
+    </button>
+
+    <button class="topic-card c-interview" data-topic="interview">
+      <div class="card-top">
+        <div class="card-icon-wrap c-career">💼</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Career</span>
+      <h3>Job interview prep</h3>
+      <p>Upload your resume. Get a real interview tailored to your background.</p>
+    </button>
+
+    <button class="topic-card" data-topic="language">
+      <div class="card-top">
+        <div class="card-icon-wrap c-lang">🌍</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Language</span>
+      <h3>Learn a language</h3>
+      <p>Structured lessons — phrases, grammar, pronunciation.</p>
+    </button>
+
+    <button class="topic-card" data-topic="public">
+      <div class="card-top">
+        <div class="card-icon-wrap c-public">🎤</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Speaking</span>
+      <h3>Public speaking</h3>
+      <p>Speeches, pitches, storytelling. Pacing & confidence scored.</p>
+    </button>
+
+    <button class="topic-card" data-topic="ielts">
+      <div class="card-top">
+        <div class="card-icon-wrap c-exam">📝</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Exam prep</span>
+      <h3>IELTS / TOEFL</h3>
+      <p>Examiner-style prompts across Part 1, 2, and 3.</p>
+    </button>
+
+    <button class="topic-card" data-topic="free">
+      <div class="card-top">
+        <div class="card-icon-wrap c-free">✨</div>
+        <span class="card-arrow">↗</span>
+      </div>
+      <span class="eyebrow">Custom</span>
+      <h3>Your own topic</h3>
+      <p>Tell Alex exactly what you want to practice.</p>
+    </button>
+  </div>
+
+  <!-- ── INTERVIEW SETUP ── -->
+  <div id="interview-setup" class="setup-panel">
+    <div class="panel-header">
+      <div class="panel-icon-wrap">💼</div>
+      <div>
+        <div class="panel-title">Interview setup</div>
+        <div class="panel-hint">Upload your resume for a fully personalised interview</div>
+      </div>
+    </div>
+
+    <!-- Resume upload -->
+    <div class="resume-zone" id="resume-zone">
+      <input type="file" id="resume-file" accept=".txt,.pdf,.doc,.docx" hidden>
+      <div class="resume-zone-inner" id="resume-zone-inner">
+        <div class="resume-icon">📄</div>
+        <div class="resume-zone-text">Drop your resume here or <span class="resume-browse">browse</span></div>
+        <div class="resume-zone-sub">TXT, PDF, DOC, DOCX · Max 2MB</div>
+      </div>
+      <div class="resume-loaded" id="resume-loaded" style="display:none">
+        <span class="resume-loaded-icon">✅</span>
+        <span id="resume-filename">resume.pdf</span>
+        <button class="resume-remove" id="resume-remove">✕</button>
+      </div>
+    </div>
+
+    <div class="panel-divider"><span>or fill in manually</span></div>
+
+    <div class="panel-row">
+      <div class="panel-field">
+        <label>Job role / title</label>
+        <input id="interview-role" type="text" placeholder="e.g. Software Engineer…">
+      </div>
+      <div class="panel-field">
+        <label>Industry</label>
+        <select id="interview-industry">
+          <option>Tech</option><option>Finance</option><option>Marketing</option>
+          <option>Healthcare</option><option>Consulting</option><option>Education</option>
+          <option>Sales</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-row">
+      <div class="panel-field">
+        <label>Experience level</label>
+        <select id="interview-level">
+          <option value="Entry-level (0-2 years)">Entry-level (0–2 yrs)</option>
+          <option value="Mid-level (3-5 years)">Mid-level (3–5 yrs)</option>
+          <option value="Senior (6+ years)">Senior (6+ yrs)</option>
+          <option value="Manager / Lead">Manager / Lead</option>
+        </select>
+      </div>
+      <div class="panel-field">
+        <label>Interview style</label>
+        <select id="interview-style">
+          <option value="balanced">Balanced (mixed)</option>
+          <option value="behavioral">Behavioral (STAR)</option>
+          <option value="technical">Technical / skills</option>
+          <option value="case">Case / situational</option>
+        </select>
+      </div>
+    </div>
+    <button id="interview-go" class="go-btn">Start interview <span>→</span></button>
+  </div>
+
+  <!-- ── LANGUAGE SETUP ── -->
+  <div id="language-setup" class="setup-panel">
+    <div class="panel-header">
+      <div class="panel-icon-wrap">🌍</div>
+      <div>
+        <div class="panel-title">Language course setup</div>
+        <div class="panel-hint">Alex teaches step by step, phrase by phrase</div>
+      </div>
+    </div>
+    <div class="panel-row">
+      <div class="panel-field">
+        <label>Language to learn</label>
+        <select id="lang-target">
+          <option value="Spanish">🇪🇸 Spanish</option>
+          <option value="French">🇫🇷 French</option>
+          <option value="German">🇩🇪 German</option>
+          <option value="Italian">🇮🇹 Italian</option>
+          <option value="Portuguese">🇧🇷 Portuguese</option>
+          <option value="Japanese">🇯🇵 Japanese</option>
+          <option value="Mandarin Chinese">🇨🇳 Mandarin Chinese</option>
+          <option value="Arabic">🇸🇦 Arabic</option>
+          <option value="Hindi">🇮🇳 Hindi</option>
+          <option value="Korean">🇰🇷 Korean</option>
+          <option value="Russian">🇷🇺 Russian</option>
+          <option value="Turkish">🇹🇷 Turkish</option>
+          <option value="Dutch">🇳🇱 Dutch</option>
+          <option value="Other">🌐 Other…</option>
+        </select>
+      </div>
+      <div class="panel-field">
+        <label>Your level</label>
+        <select id="lang-level">
+          <option value="complete beginner">Complete beginner</option>
+          <option value="beginner (A1-A2)">Beginner (A1–A2)</option>
+          <option value="intermediate (B1-B2)">Intermediate (B1–B2)</option>
+          <option value="advanced (C1-C2)">Advanced (C1–C2)</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-field" style="margin-top:4px">
+      <label>Focus area</label>
+      <div class="focus-chips" id="focus-chips">
+        <button type="button" class="focus-chip active" data-val="everyday conversation">💬 Everyday</button>
+        <button type="button" class="focus-chip" data-val="travel phrases">✈️ Travel</button>
+        <button type="button" class="focus-chip" data-val="business language">💼 Business</button>
+        <button type="button" class="focus-chip" data-val="grammar fundamentals">📖 Grammar</button>
+        <button type="button" class="focus-chip" data-val="vocabulary building">🧠 Vocabulary</button>
+      </div>
+      <input type="hidden" id="lang-focus" value="everyday conversation">
+    </div>
+    <button id="language-go" class="go-btn go-lang">Start learning <span>→</span></button>
+  </div>
+
+  <!-- ── PUBLIC SETUP ── -->
+  <div id="public-setup" class="setup-panel">
+    <div class="panel-header">
+      <div class="panel-icon-wrap">🎤</div>
+      <div>
+        <div class="panel-title">Public speaking setup</div>
+        <div class="panel-hint">Alex coaches delivery, structure, and confidence</div>
+      </div>
+    </div>
+    <div class="panel-row">
+      <div class="panel-field">
+        <label>Speaking type</label>
+        <select id="public-type">
+          <option value="persuasive speech">Persuasive speech</option>
+          <option value="informative presentation">Informative presentation</option>
+          <option value="storytelling">Storytelling / narrative</option>
+          <option value="elevator pitch">Elevator pitch</option>
+          <option value="debate">Debate / argument</option>
+          <option value="impromptu speaking">Impromptu speaking</option>
+        </select>
+      </div>
+      <div class="panel-field">
+        <label>Audience</label>
+        <select id="public-audience">
+          <option value="general audience">General audience</option>
+          <option value="business professionals">Business professionals</option>
+          <option value="academic audience">Academic audience</option>
+          <option value="investors / pitch panel">Investors / pitch panel</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-field" style="margin-top:4px">
+      <label>Topic / title <span class="label-opt">(optional)</span></label>
+      <input id="public-topic" type="text" placeholder="e.g. Why remote work is the future…">
+    </div>
+    <button id="public-go" class="go-btn go-public">Start practice <span>→</span></button>
+  </div>
+
+  <!-- ── FREE TOPIC ── -->
+  <div id="free-topic-row">
+    <div class="free-inner">
+      <div class="panel-header" style="margin-bottom:14px">
+        <div class="panel-icon-wrap">✨</div>
+        <div>
+          <div class="panel-title">Your own topic</div>
+          <div class="panel-hint">Tell Alex what you want to practice</div>
+        </div>
+      </div>
+      <div class="free-input-wrap">
+        <input id="free-topic-input" type="text" placeholder="e.g. ordering food at a restaurant, climate change…">
+        <button id="free-topic-go">Start →</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="mic-note">🎙 Needs microphone · works best in Chrome or Edge · 100% free · powered by Ollama</p>
+</div>
+
+<!-- ===== APP SCREEN ===== -->
+<div id="app-screen">
+  <header class="app-header">
+    <div class="app-header-left">
+      <div class="app-logo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      </div>
+      <span class="wordmark app-wordmark">SpeakBack</span>
+      <span class="topic-pill" id="topic-pill"></span>
+      <button class="change-btn" id="change-topic-btn">← back</button>
+    </div>
+    <div class="app-header-right">
+      <button class="theme-toggle" id="theme-toggle-app"><span class="t-icon">🌙</span><span class="t-label">Dark</span></button>
+      <div class="live-stats">
+        <span class="stat-chip" id="stat-words">0 words</span>
+        <span class="stat-chip danger" id="stat-fillers">0 fillers</span>
+      </div>
+      <button class="report-btn" id="open-feedback-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        Report
+      </button>
+    </div>
+  </header>
+
+  <div id="interview-progress" class="interview-progress">
+    <div class="progress-steps">
+      <div class="progress-step active" data-round="intro"><span class="step-dot"></span><span class="step-label">Intro</span></div>
+      <div class="progress-step" data-round="behavioral"><span class="step-dot"></span><span class="step-label">Behavioral</span></div>
+      <div class="progress-step" data-round="technical"><span class="step-dot"></span><span class="step-label">Technical</span></div>
+      <div class="progress-step" data-round="situational"><span class="step-dot"></span><span class="step-label">Situational</span></div>
+      <div class="progress-step" data-round="closing"><span class="step-dot"></span><span class="step-label">Closing</span></div>
+    </div>
+    <div class="q-counter" id="question-counter">Q 0 / 10</div>
+  </div>
+
+  <div id="lang-bar" class="lang-bar">
+    <div class="lang-bar-left"><span>🌍</span><span id="lang-bar-text">Lesson in progress</span></div>
+    <span class="lang-xp" id="lang-xp">⭐ 0 XP</span>
+  </div>
+
+  <main class="stage">
+    <div class="interim-preview" id="interim-preview"></div>
+    <div id="transcript"></div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="chat-bar">
+      <div class="orb-wrap orb-inline" id="orb-wrap">
+        <div class="orb-ring"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-ring"></div>
+        <button class="orb-core" id="mic-orb" aria-label="Toggle microphone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+          </svg>
+        </button>
+      </div>
+      <div class="chat-input-wrap">
+        <input id="fallback-input" type="text" placeholder="Type a message or tap mic…">
+        <button id="fallback-send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="orb-label" id="orb-state-label">tap mic</div>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== FEEDBACK DRAWER ===== -->
+<div id="overlay"></div>
+<div id="drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-head">
+    <h2 class="wordmark" id="drawer-title">Feedback report</h2>
+    <button class="drawer-close" id="drawer-close">✕</button>
+  </div>
+  <div class="drawer-body" id="drawer-body">
+    <p class="empty-note">Have a conversation first, then check back here.</p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+  // Focus chips
+  document.querySelectorAll('.focus-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.focus-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      document.getElementById('lang-focus').value = chip.dataset.val;
+    });
+  });
+
+  // Theme toggle
+  const THEME_KEY = 'sb-theme';
+  const toggleBtns = document.querySelectorAll('.theme-toggle');
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const dark = theme === 'dark';
+    toggleBtns.forEach(b => {
+      b.querySelector('.t-icon').textContent = dark ? '☀️' : '🌙';
+      b.querySelector('.t-label').textContent = dark ? 'Light' : 'Dark';
+    });
+  }
+  toggleBtns.forEach(b => b.addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  }));
+  applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+
+  // Resume upload UI
+  const zone = document.getElementById('resume-zone');
+  const fileInput = document.getElementById('resume-file');
+  const zoneInner = document.getElementById('resume-zone-inner');
+  const resumeLoaded = document.getElementById('resume-loaded');
+  const resumeFilename = document.getElementById('resume-filename');
+
+  zoneInner.addEventListener('click', () => fileInput.click());
+  document.querySelector('.resume-browse').addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleResumeFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleResumeFile(fileInput.files[0]); });
+
+  function handleResumeFile(file) {
+    resumeFilename.textContent = file.name;
+    zoneInner.style.display = 'none';
+    resumeLoaded.style.display = 'flex';
+    // _resumeFile is declared in script.js — set it directly (no window global)
+    if (typeof _resumeFile !== 'undefined') _resumeFile = file;
+    else window._pendingResumeFile = file; // fallback if script load order changes
+  }
+
+  document.getElementById('resume-remove').addEventListener('click', () => {
+    zoneInner.style.display = 'flex';
+    resumeLoaded.style.display = 'none';
+    fileInput.value = '';
+    if (typeof _resumeFile !== 'undefined') _resumeFile = null;
+    else window._pendingResumeFile = null;
+  });
+</script>
+</body>
+</html>
