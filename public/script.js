@@ -57,6 +57,7 @@ let interviewQuestionInRound = 0;
 let interviewTotalQ = 0;
 const TOTAL_INTERVIEW_Q = INTERVIEW_ROUNDS.length * QUESTIONS_PER_ROUND;
 let userStopped = false;
+let isProcessing = false; // lock — one AI call at a time
 
 let currentTopicKey = null;
 let currentTopicLabel = "";
@@ -318,14 +319,13 @@ function setupSpeechRecognition() {
   }
 
   recognition = new SR();
-  recognition.continuous = true;   // keep listening without needing to re-tap
+  recognition.continuous = false;  // one utterance per tap — prevents buffered echo
   recognition.interimResults = true;
   recognition.lang = 'en-US';
   recognition.maxAlternatives = 1;
 
   recognition.onresult = e => {
-    // Discard everything while Alex is speaking — prevents TTS echo loop
-    if (isSpeaking) { interimPreview.textContent = ''; return; }
+    if (isSpeaking || isProcessing) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const chunk = e.results[i][0].transcript;
@@ -408,8 +408,8 @@ function updateLiveStats() {
 }
 
 async function handleUserUtterance(text) {
-  // Hard guard — never process speech while Alex is talking
-  if (isSpeaking) return;
+  if (isSpeaking || isProcessing) return;
+  isProcessing = true;
   text = decodeHtmlEntities(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
   wordCount += words.length;
@@ -489,10 +489,11 @@ async function handleUserUtterance(text) {
     renderTranscript();
     pushAI(replyText);
   } catch (err) {
-    // Remove the failed user turn from transcript so they can retry
     transcript.pop();
     renderTranscript();
     setStatus('connection issue — tap mic or type to retry');
+  } finally {
+    isProcessing = false;
   }
 }
 
