@@ -315,6 +315,7 @@ app.post('/api/parse-resume', enforceOrigin, resumeLimiter, upload.single('resum
   const a = Buffer.from(signToken(headerToken), 'hex');
   const b = Buffer.from(cookieSig, 'hex');
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid CSRF token' });
+  if (!req.file) return res.status(400).json({ error: 'No file received. Please select a file and try again.' });
   const { mimetype, originalname, buffer } = req.file;
   const ext = path.extname(originalname).toLowerCase();
   const allowed = new Set(['.pdf', '.txt', '.doc', '.docx']);

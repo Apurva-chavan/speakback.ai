@@ -132,6 +132,9 @@ $('interview-go').addEventListener('click', async () => {
   resumeText = '';
   if (_resumeFile) {
     try {
+      // Ensure CSRF token is ready before upload
+      await csrfReady;
+      if (!_csrfToken) await refreshCsrfToken();
       const fd = new FormData();
       fd.append('resume', _resumeFile);
       const r = await fetch('/api/parse-resume', { method: 'POST', headers: { 'X-CSRF-Token': _csrfToken }, body: fd });
