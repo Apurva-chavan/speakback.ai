@@ -540,12 +540,16 @@ function speak(text) {
   if (!('speechSynthesis' in window)) { setStatus('tap the mic to talk'); return; }
   window.speechSynthesis.cancel();
 
-  // Stop mic while Alex speaks — prevents TTS audio feeding back into recognition
-  if (isListening) {
-    try { recognition.stop(); } catch (_) {}
-    isListening = false;
-    orbWrap.classList.remove('listening');
+  // Fully abort recognition before TTS starts — not just stop, abort kills buffered results too
+  if (recognition) {
+    recognition.onresult = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    try { recognition.abort(); } catch (_) {}
   }
+  isListening = false;
+  orbWrap.classList.remove('listening');
+  interimPreview.textContent = '';
 
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1; utter.pitch = 1;
@@ -561,8 +565,17 @@ function speak(text) {
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
+    // Reinitialize recognition fresh — old instance was aborted, handlers were nulled
+    setupSpeechRecognition();
   };
-  utter.onerror = () => { isSpeaking = false; ttsEndedAt = Date.now(); orbWrap.classList.remove('speaking'); interimPreview.textContent = ''; setStatus('tap mic or type'); };
+  utter.onerror = () => {
+    isSpeaking = false;
+    ttsEndedAt = Date.now();
+    orbWrap.classList.remove('speaking');
+    interimPreview.textContent = '';
+    setStatus('tap mic or type');
+    setupSpeechRecognition();
+  };
   window.speechSynthesis.speak(utter);
 }
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {
