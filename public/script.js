@@ -739,37 +739,33 @@ async function refreshCsrfToken() {
 // Store the promise so launchApp can await it before the first API call
 const csrfReady = refreshCsrfToken();
 
-// Allowlist of permitted API endpoints — prevents any dynamic URL from being passed to fetch
-const ALLOWED_ENDPOINTS = { chat: '/api/chat', feedback: '/api/feedback' };
-
-async function apiFetch(endpointKey, body, retried = false) {
-  // Resolve URL from allowlist only — never interpolate user input into the URL
-  const url = ALLOWED_ENDPOINTS[endpointKey];
-  if (!url) throw new Error('Invalid endpoint');
-  const res = await fetch(url, {
+async function postChat(body, retried = false) {
+  const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _csrfToken },
     body: JSON.stringify(body)
   });
-  // Auto-refresh CSRF token on 403 and retry once
-  if (res.status === 403 && !retried) {
-    await refreshCsrfToken();
-    return apiFetch(endpointKey, body, true);
-  }
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Unknown error');
-    throw new Error(`API ${res.status}: ${errText}`);
-  }
+  if (res.status === 403 && !retried) { await refreshCsrfToken(); return postChat(body, true); }
+  if (!res.ok) { const e = await res.text().catch(() => 'Unknown error'); throw new Error(`API ${res.status}: ${e}`); }
   return res.json();
 }
 
-function postChat(body) { return apiFetch('chat', body); }
-function postFeedback(body) { return apiFetch('feedback', body); }
+async function postFeedback(body, retried = false) {
+  const res = await fetch('/api/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _csrfToken },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 403 && !retried) { await refreshCsrfToken(); return postFeedback(body, true); }
+  if (!res.ok) { const e = await res.text().catch(() => 'Unknown error'); throw new Error(`API ${res.status}: ${e}`); }
+  return res.json();
+}
 
 async function apiCall(endpoint, messages, overrideSystem) {
-  if (!ALLOWED_ENDPOINTS[endpoint]) throw new Error('Invalid endpoint');
   const body = buildBody(messages, overrideSystem);
-  return endpoint === 'chat' ? postChat(body) : postFeedback(body);
+  if (endpoint === 'chat') return postChat(body);
+  if (endpoint === 'feedback') return postFeedback(body);
+  throw new Error('Invalid endpoint');
 }
 
 function decodeHtmlEntities(str) {
