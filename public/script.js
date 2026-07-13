@@ -297,7 +297,7 @@ async function sendGreeting() {
         if (meaningMatch) langLesson.meaning = meaningMatch[2].trim();
       }
     }
-    pushAI(replyText);
+    pushAI(replyText, false); // don't auto-speak greeting — user reads it, taps mic when ready
   } catch (e) {
     setStatus('tap mic or type to start');
   }
@@ -439,7 +439,11 @@ async function handleUserUtterance(text) {
   setStatus('thinking…');
 
   try {
-    const history = transcript.map(t => ({ role: t.role === 'user' ? 'user' : 'assistant', content: t.text }));
+    // Build history — must always start with a user message
+    // Filter out any leading ai turns (e.g. greeting) so the model doesn't roleplay both sides
+    const raw = transcript.map(t => ({ role: t.role === 'user' ? 'user' : 'assistant', content: t.text }));
+    const firstUserIdx = raw.findIndex(m => m.role === 'user');
+    const history = firstUserIdx >= 0 ? raw.slice(firstUserIdx) : raw;
 
     // Language mode: check practice attempt client-side before sending to AI
     if (currentTopicKey === 'language' && langLesson.waitingForPractice && langLesson.word) {
@@ -509,12 +513,13 @@ async function handleUserUtterance(text) {
   }
 }
 
-function pushAI(text) {
+function pushAI(text, shouldSpeak = true) {
   text = decodeHtmlEntities(text);
   const aiTurn = { role: 'ai', text, tip: null, tipGood: false, star: null };
   transcript.push(aiTurn);
   renderTranscript();
-  speak(text);
+  if (shouldSpeak) speak(text);
+  else setStatus('tap mic or type');
 }
 
 // ---------- STRING SIMILARITY (Levenshtein-based, for practice checking) ----------
