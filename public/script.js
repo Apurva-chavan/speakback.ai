@@ -297,7 +297,7 @@ async function sendGreeting() {
         if (meaningMatch) langLesson.meaning = meaningMatch[2].trim();
       }
     }
-    pushAI(replyText, false); // don't auto-speak greeting — user reads it, taps mic when ready
+    pushAI(replyText, true); // speak the greeting — voice is now guaranteed loaded
   } catch (e) {
     setStatus('tap mic or type to start');
   }
@@ -315,7 +315,7 @@ function createRecognition() {
   r.maxAlternatives = 1;
 
   r.onresult = e => {
-    const cooldown = Date.now() - ttsEndedAt < 2000;
+    const cooldown = Date.now() - ttsEndedAt < 3000;
     if (isSpeaking || isProcessing || cooldown) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -563,10 +563,27 @@ function speak(text) {
   killRecognition();
   interimPreview.textContent = '';
 
+  // If voice not loaded yet, wait for it then speak
+  if (!lockedVoice) {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length) {
+      lockedVoice = pickVoice(voices);
+    } else {
+      // Voices not ready — wait for onvoiceschanged then retry
+      window.speechSynthesis.onvoiceschanged = () => {
+        const v = window.speechSynthesis.getVoices();
+        if (v.length) lockedVoice = pickVoice(v);
+        window.speechSynthesis.onvoiceschanged = null;
+        speak(text);
+      };
+      return;
+    }
+  }
+
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1; utter.pitch = 1;
-  if (lockedVoice) utter.voice = lockedVoice;
-  utter.onstart = () => {}; // already set above
+  utter.voice = lockedVoice || null;
+  utter.onstart = () => {};
   utter.onend = () => {
     isSpeaking = false;
     ttsEndedAt = Date.now();
@@ -586,12 +603,12 @@ function speak(text) {
 if ('speechSynthesis' in window) {
   // Pick voice once when voices are ready and never change it again
   const initVoice = () => {
-    if (lockedVoice) return; // already locked
+    if (lockedVoice) return;
     const voices = window.speechSynthesis.getVoices();
     if (voices.length) lockedVoice = pickVoice(voices);
   };
   window.speechSynthesis.onvoiceschanged = initVoice;
-  initVoice(); // try immediately in case voices already loaded
+  initVoice();
 }
 
 function pickVoice(voices) {
