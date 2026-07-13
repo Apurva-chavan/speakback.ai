@@ -315,7 +315,7 @@ function createRecognition() {
   r.maxAlternatives = 1;
 
   r.onresult = e => {
-    const cooldown = Date.now() - ttsEndedAt < 3000;
+    const cooldown = Date.now() - ttsEndedAt < 1500;
     if (isSpeaking || isProcessing || cooldown) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -518,6 +518,7 @@ function pushAI(text) {
   const aiTurn = { role: 'ai', text, tip: null, tipGood: false, star: null };
   transcript.push(aiTurn);
   renderTranscript();
+  userStopped = false; // reset so mic auto-starts after Alex speaks
   speak(text);
 }
 
@@ -589,6 +590,20 @@ function speak(text) {
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
+    // Auto-start mic after a delay so speaker audio clears
+    setTimeout(() => {
+      if (!isListening && !isProcessing && !userStopped) {
+        recognition = createRecognition();
+        if (recognition) {
+          try {
+            recognition.start();
+            isListening = true;
+            orbWrap.classList.add('listening');
+            setStatus('listening…');
+          } catch (_) { setStatus('tap mic or type'); }
+        }
+      }
+    }, 1500);
   };
   utter.onerror = () => {
     isSpeaking = false;

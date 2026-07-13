@@ -262,13 +262,14 @@ app.post('/api/chat', enforceOrigin, csrfProtection, apiLimiter, validateChatBod
 });
 
 app.post('/api/feedback', enforceOrigin, csrfProtection, apiLimiter, async (req, res) => { // csrf-protected
-  const { system, messages } = req.body;
-  if (typeof system !== 'string' || system.length > 4000) {
-    return res.status(400).json({ error: 'Invalid system prompt' });
-  }
+  const { messages } = req.body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages must be a non-empty array' });
   }
+  // Use override system if provided (feedback drawer passes its own prompt), else build from topic
+  const system = (typeof req.body.system === 'string' && req.body.system.length <= 4000)
+    ? req.body.system
+    : buildSystem(req.body);
   try {
     const text = await ollamaChat(system, messages);
     res.json({ content: [{ type: 'text', text }] });
