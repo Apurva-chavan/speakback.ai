@@ -297,7 +297,7 @@ async function sendGreeting() {
         if (meaningMatch) langLesson.meaning = meaningMatch[2].trim();
       }
     }
-    pushAI(replyText, true); // speak the greeting — voice is now guaranteed loaded
+    pushAI(replyText);
   } catch (e) {
     setStatus('tap mic or type to start');
   }
@@ -513,13 +513,12 @@ async function handleUserUtterance(text) {
   }
 }
 
-function pushAI(text, shouldSpeak = true) {
+function pushAI(text) {
   text = decodeHtmlEntities(text);
   const aiTurn = { role: 'ai', text, tip: null, tipGood: false, star: null };
   transcript.push(aiTurn);
   renderTranscript();
-  if (shouldSpeak) speak(text);
-  else setStatus('tap mic or type');
+  speak(text);
 }
 
 // ---------- STRING SIMILARITY (Levenshtein-based, for practice checking) ----------

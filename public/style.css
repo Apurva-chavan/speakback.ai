@@ -211,6 +211,10 @@ main.stage{flex:1;display:flex;flex-direction:column;padding:0;overflow:hidden;}
 .tip-chip{margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:.67rem;color:var(--success);background:rgba(78,155,95,.1);border:1px solid rgba(78,155,95,.25);padding:5px 11px;border-radius:10px;}
 .tip-chip.improve{color:var(--danger);background:rgba(193,87,59,.08);border-color:rgba(193,87,59,.25);}
 
+/* speak button on AI bubbles */
+.speak-btn{margin-top:5px;font-size:.8rem;padding:3px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;transition:var(--tr);align-self:flex-start;}
+.speak-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+
 /* ── STAR CARD ── */
 .star-card{margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;width:100%;box-shadow:var(--shadow);}
 .star-header{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
