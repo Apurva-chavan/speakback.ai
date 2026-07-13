@@ -65,6 +65,7 @@ let isListening = false;
 let isSpeaking = false;
 let recognition = null;
 let cachedVoices = [];
+let lockedVoice = null;
 let wordCount = 0;
 let fillerCount = 0;
 let langXP = 0;
@@ -544,9 +545,11 @@ function speak(text) {
 
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1; utter.pitch = 1;
-  const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => /en-US|en_US/.test(v.lang) && /Female|Google US English/i.test(v.name)) || voices.find(v => /^en/.test(v.lang));
-  if (preferred) utter.voice = preferred;
+  if (!lockedVoice) {
+    const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+    lockedVoice = pickVoice(voices);
+  }
+  if (lockedVoice) utter.voice = lockedVoice;
   utter.onstart = () => { isSpeaking = true; orbWrap.classList.add('speaking'); setStatus('Alex is talking…'); };
   utter.onend = () => {
     isSpeaking = false;
@@ -557,7 +560,16 @@ function speak(text) {
   utter.onerror = () => { isSpeaking = false; orbWrap.classList.remove('speaking'); interimPreview.textContent = ''; setStatus('tap mic or type'); };
   window.speechSynthesis.speak(utter);
 }
-if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => { cachedVoices = window.speechSynthesis.getVoices(); };
+if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {
+  cachedVoices = window.speechSynthesis.getVoices();
+  if (!lockedVoice) lockedVoice = pickVoice(cachedVoices);
+};
+
+function pickVoice(voices) {
+  return voices.find(v => /en-US|en_US/.test(v.lang) && /Google US English/i.test(v.name))
+    || voices.find(v => /en-US|en_US/.test(v.lang) && !v.localService)
+    || voices.find(v => /^en/.test(v.lang));
+}
 
 
 // ---------- RENDER ----------
