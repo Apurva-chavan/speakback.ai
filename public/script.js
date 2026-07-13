@@ -58,6 +58,7 @@ let interviewTotalQ = 0;
 const TOTAL_INTERVIEW_Q = INTERVIEW_ROUNDS.length * QUESTIONS_PER_ROUND;
 let userStopped = false;
 let isProcessing = false; // lock — one AI call at a time
+let ttsEndedAt = 0;       // timestamp when TTS last ended — ignore mic input briefly after
 
 let currentTopicKey = null;
 let currentTopicLabel = "";
@@ -325,7 +326,8 @@ function setupSpeechRecognition() {
   recognition.maxAlternatives = 1;
 
   recognition.onresult = e => {
-    if (isSpeaking || isProcessing) { interimPreview.textContent = ''; return; }
+    const cooldown = Date.now() - ttsEndedAt < 2000;
+    if (isSpeaking || isProcessing || cooldown) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const chunk = e.results[i][0].transcript;
@@ -367,6 +369,7 @@ $('mic-orb').addEventListener('click', () => {
     return;
   }
   userStopped = false;
+  ttsEndedAt = 0; // user explicitly tapped — reset cooldown immediately
   // If Alex is speaking, stop TTS and start listening immediately
   if (isSpeaking) {
     window.speechSynthesis.cancel();
@@ -554,11 +557,12 @@ function speak(text) {
   utter.onstart = () => { isSpeaking = true; orbWrap.classList.add('speaking'); setStatus('Alex is talking…'); };
   utter.onend = () => {
     isSpeaking = false;
+    ttsEndedAt = Date.now();
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
   };
-  utter.onerror = () => { isSpeaking = false; orbWrap.classList.remove('speaking'); interimPreview.textContent = ''; setStatus('tap mic or type'); };
+  utter.onerror = () => { isSpeaking = false; ttsEndedAt = Date.now(); orbWrap.classList.remove('speaking'); interimPreview.textContent = ''; setStatus('tap mic or type'); };
   window.speechSynthesis.speak(utter);
 }
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {
