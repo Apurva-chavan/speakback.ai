@@ -323,6 +323,8 @@ function setupSpeechRecognition() {
   recognition.maxAlternatives = 1;
 
   recognition.onresult = e => {
+    // Discard everything while Alex is speaking — prevents TTS echo loop
+    if (isSpeaking) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const chunk = e.results[i][0].transcript;
@@ -336,19 +338,12 @@ function setupSpeechRecognition() {
   };
 
   recognition.onerror = e => {
-    // 'no-speech' is not a real error — continuous mode fires this on silence, just restart
-    if (e.error === 'no-speech') {
-      if (!isSpeaking && !userStopped) {
-        try { recognition.start(); } catch (_) {}
-      }
-      return;
-    }
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
     isListening = false;
     orbWrap.classList.remove('listening');
+    interimPreview.textContent = '';
     if (e.error === 'not-allowed' || e.error === 'permission-denied') {
       setStatus('microphone blocked — allow access in browser settings');
-    } else if (e.error === 'aborted') {
-      // intentional abort — do nothing
     } else {
       setStatus('mic error — tap to retry');
     }
@@ -357,19 +352,8 @@ function setupSpeechRecognition() {
   recognition.onend = () => {
     isListening = false;
     orbWrap.classList.remove('listening');
-    // Auto-restart if Alex isn't speaking and user didn't manually stop
-    if (!isSpeaking && !userStopped) {
-      try {
-        recognition.start();
-        isListening = true;
-        orbWrap.classList.add('listening');
-        setStatus('listening…');
-      } catch (_) {
-        setStatus('tap mic or type');
-      }
-    } else {
-      setStatus('tap mic or type');
-    }
+    interimPreview.textContent = '';
+    setStatus('tap mic or type');
   };
 }
 
@@ -423,6 +407,8 @@ function updateLiveStats() {
 }
 
 async function handleUserUtterance(text) {
+  // Hard guard — never process speech while Alex is talking
+  if (isSpeaking) return;
   text = decodeHtmlEntities(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
   wordCount += words.length;
@@ -565,24 +551,14 @@ function speak(text) {
   utter.onend = () => {
     isSpeaking = false;
     orbWrap.classList.remove('speaking');
+    interimPreview.textContent = '';
     setStatus('tap mic or type');
-    // Small delay so the browser fully closes the audio stream before reopening mic
-    setTimeout(autoRestartListening, 300);
   };
-  utter.onerror = () => { isSpeaking = false; orbWrap.classList.remove('speaking'); setStatus('tap mic or type'); };
+  utter.onerror = () => { isSpeaking = false; orbWrap.classList.remove('speaking'); interimPreview.textContent = ''; setStatus('tap mic or type'); };
   window.speechSynthesis.speak(utter);
 }
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => { cachedVoices = window.speechSynthesis.getVoices(); };
 
-function autoRestartListening() {
-  if (!recognition || isListening || userStopped) return;
-  try {
-    recognition.start();
-    isListening = true;
-    orbWrap.classList.add('listening');
-    setStatus('listening…');
-  } catch (_) {}
-}
 
 // ---------- RENDER ----------
 function renderTranscript() {
