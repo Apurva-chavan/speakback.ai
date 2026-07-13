@@ -302,30 +302,17 @@ async function sendGreeting() {
 }
 
 // ---------- SPEECH RECOGNITION ----------
-function setupSpeechRecognition() {
+// Recognition is created ONLY when user taps mic — never runs in background
+function createRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    setStatus("voice input isn't supported — type instead");
-    $('mic-orb').style.opacity = '0.4';
-    $('mic-orb').style.cursor = 'not-allowed';
-    return;
-  }
+  if (!SR) return null;
+  const r = new SR();
+  r.continuous = false;
+  r.interimResults = true;
+  r.lang = 'en-US';
+  r.maxAlternatives = 1;
 
-  // Tear down any existing instance before creating a new one
-  if (recognition) {
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    try { recognition.abort(); } catch (_) {}
-  }
-
-  recognition = new SR();
-  recognition.continuous = false;  // one utterance per tap — prevents buffered echo
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-  recognition.maxAlternatives = 1;
-
-  recognition.onresult = e => {
+  r.onresult = e => {
     const cooldown = Date.now() - ttsEndedAt < 2000;
     if (isSpeaking || isProcessing || cooldown) { interimPreview.textContent = ''; return; }
     let interim = '', final = '';
@@ -340,7 +327,7 @@ function setupSpeechRecognition() {
     }
   };
 
-  recognition.onerror = e => {
+  r.onerror = e => {
     if (e.error === 'no-speech' || e.error === 'aborted') return;
     isListening = false;
     orbWrap.classList.remove('listening');
@@ -352,47 +339,67 @@ function setupSpeechRecognition() {
     }
   };
 
-  recognition.onend = () => {
+  r.onend = () => {
     isListening = false;
     orbWrap.classList.remove('listening');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
   };
+
+  return r;
+}
+
+function setupSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    setStatus("voice input isn't supported — type instead");
+    $('mic-orb').style.opacity = '0.4';
+    $('mic-orb').style.cursor = 'not-allowed';
+  }
+  // Kill any existing instance but don't create a new one yet
+  killRecognition();
+}
+
+function killRecognition() {
+  if (recognition) {
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch (_) {}
+    recognition = null;
+  }
+  isListening = false;
+  orbWrap.classList.remove('listening');
+  interimPreview.textContent = '';
 }
 
 $('mic-orb').addEventListener('click', () => {
-  if (!recognition) return;
   if (isListening) {
+    // Stop current session
     userStopped = true;
-    stopListening();
+    killRecognition();
     setStatus('tap mic or type');
     return;
   }
-  userStopped = false;
-  ttsEndedAt = 0; // user explicitly tapped — reset cooldown immediately
-  // If Alex is speaking, stop TTS and start listening immediately
   if (isSpeaking) {
+    // Interrupt Alex
     window.speechSynthesis.cancel();
     isSpeaking = false;
+    ttsEndedAt = 0;
     orbWrap.classList.remove('speaking');
   }
+  userStopped = false;
+  ttsEndedAt = 0;
+  // Create a fresh recognition instance on every tap
+  recognition = createRecognition();
+  if (!recognition) return;
   try {
     recognition.start();
     isListening = true;
     orbWrap.classList.add('listening');
     setStatus('listening…');
-  } catch (err) {
-    // Already started — ignore
-  }
+  } catch (_) {}
 });
-
-function stopListening() {
-  if (recognition) {
-    try { recognition.stop(); } catch (_) {}
-  }
-  isListening = false;
-  orbWrap.classList.remove('listening');
-}
 
 $('fallback-send').addEventListener('click', sendFallback);
 $('fallback-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendFallback(); });
@@ -540,15 +547,8 @@ function speak(text) {
   if (!('speechSynthesis' in window)) { setStatus('tap the mic to talk'); return; }
   window.speechSynthesis.cancel();
 
-  // Fully abort recognition before TTS starts — not just stop, abort kills buffered results too
-  if (recognition) {
-    recognition.onresult = null;
-    recognition.onend = null;
-    recognition.onerror = null;
-    try { recognition.abort(); } catch (_) {}
-  }
-  isListening = false;
-  orbWrap.classList.remove('listening');
+  // Fully kill recognition before TTS — no instance running at all during speech
+  killRecognition();
   interimPreview.textContent = '';
 
   const utter = new SpeechSynthesisUtterance(text);
@@ -565,8 +565,7 @@ function speak(text) {
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
-    // Reinitialize recognition fresh — old instance was aborted, handlers were nulled
-    setupSpeechRecognition();
+    // Fresh instance will be created next time user taps mic
   };
   utter.onerror = () => {
     isSpeaking = false;
@@ -574,7 +573,6 @@ function speak(text) {
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
-    setupSpeechRecognition();
   };
   window.speechSynthesis.speak(utter);
 }
