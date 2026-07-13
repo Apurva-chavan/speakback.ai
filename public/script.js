@@ -224,8 +224,10 @@ async function launchApp(key, label) {
 }
 
 $('change-topic-btn').addEventListener('click', () => {
-  if (isListening) stopListening();
+  killRecognition();
   window.speechSynthesis && window.speechSynthesis.cancel();
+  isSpeaking = false;
+  isProcessing = false;
   appScreen.classList.remove('show');
   setupScreen.classList.remove('hidden');
   interviewProgress.classList.remove('show');
@@ -542,30 +544,30 @@ function similarity(a, b) {
   return (longer - levenshtein(a, b)) / longer;
 }
 
-// ---------- SPEAK ----------
+// Set isSpeaking immediately when speak() is called — not async in onstart
 function speak(text) {
   if (!('speechSynthesis' in window)) { setStatus('tap the mic to talk'); return; }
-  window.speechSynthesis.cancel();
 
-  // Fully kill recognition before TTS — no instance running at all during speech
+  // Set speaking flag IMMEDIATELY — before any async callbacks
+  isSpeaking = true;
+  ttsEndedAt = 0;
+  orbWrap.classList.add('speaking');
+  setStatus('Alex is talking…');
+
+  window.speechSynthesis.cancel();
   killRecognition();
   interimPreview.textContent = '';
 
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1; utter.pitch = 1;
-  if (!lockedVoice) {
-    const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
-    lockedVoice = pickVoice(voices);
-  }
   if (lockedVoice) utter.voice = lockedVoice;
-  utter.onstart = () => { isSpeaking = true; orbWrap.classList.add('speaking'); setStatus('Alex is talking…'); };
+  utter.onstart = () => {}; // already set above
   utter.onend = () => {
     isSpeaking = false;
     ttsEndedAt = Date.now();
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
-    // Fresh instance will be created next time user taps mic
   };
   utter.onerror = () => {
     isSpeaking = false;
@@ -576,14 +578,21 @@ function speak(text) {
   };
   window.speechSynthesis.speak(utter);
 }
-if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {
-  cachedVoices = window.speechSynthesis.getVoices();
-  if (!lockedVoice) lockedVoice = pickVoice(cachedVoices);
-};
+if ('speechSynthesis' in window) {
+  // Pick voice once when voices are ready and never change it again
+  const initVoice = () => {
+    if (lockedVoice) return; // already locked
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length) lockedVoice = pickVoice(voices);
+  };
+  window.speechSynthesis.onvoiceschanged = initVoice;
+  initVoice(); // try immediately in case voices already loaded
+}
 
 function pickVoice(voices) {
   return voices.find(v => /en-US|en_US/.test(v.lang) && /Google US English/i.test(v.name))
     || voices.find(v => /en-US|en_US/.test(v.lang) && !v.localService)
+    || voices.find(v => /en-US|en_US/.test(v.lang))
     || voices.find(v => /^en/.test(v.lang));
 }
 
