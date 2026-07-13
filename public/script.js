@@ -57,8 +57,8 @@ let interviewQuestionInRound = 0;
 let interviewTotalQ = 0;
 const TOTAL_INTERVIEW_Q = INTERVIEW_ROUNDS.length * QUESTIONS_PER_ROUND;
 let userStopped = false;
-let isProcessing = false; // lock — one AI call at a time
-let ttsEndedAt = 0;       // timestamp when TTS last ended — ignore mic input briefly after
+let isProcessing = false;
+let ttsEndedAt = 0;
 
 let currentTopicKey = null;
 let currentTopicLabel = "";
@@ -66,7 +66,6 @@ let transcript = [];
 let isListening = false;
 let isSpeaking = false;
 let recognition = null;
-let cachedVoices = [];
 let lockedVoice = null;
 let wordCount = 0;
 let fillerCount = 0;
@@ -242,20 +241,6 @@ $('change-topic-btn').addEventListener('click', () => {
 });
 
 // ---------- INTERVIEW HELPERS ----------
-function getInterviewSystem() {
-  const { role, industry, level, style } = interviewConfig;
-  const round = INTERVIEW_ROUNDS[interviewRoundIndex];
-  const roundGuide = {
-    intro: "Ask warm-up / introduction questions: tell me about yourself, why this role, career background.",
-    behavioral: "Ask behavioral questions using STAR format prompts: 'Tell me about a time when…', 'Give me an example of…'",
-    technical: `Ask technical or skills-based questions relevant to a ${role} in ${industry}.`,
-    situational: "Ask situational / hypothetical questions: 'What would you do if…', 'How would you handle…'",
-    closing: "Ask closing questions: questions they have for the company, salary expectations, availability, why they want to leave current role."
-  };
-  const resumeSection = resumeText ? `\n\nCANDIDATE RESUME:\n${resumeText.slice(0, 3000)}` : '';
-  return `You are Alex, a professional but warm interview coach conducting a mock ${level} ${role} interview in the ${industry} industry. You are currently in the ${round.toUpperCase()} round. ${roundGuide[round]} Ask ONE question at a time. After the candidate answers, give a brief coaching note (1-2 sentences: one strength, one improvement), then ask the next question or move to the next round. Interview style preference: ${style}. Be encouraging, specific, and realistic — like a senior friend who works in HR.${resumeSection}`;
-}
-
 function advanceInterviewRound() {
   interviewQuestionInRound++;
   interviewTotalQ++;
@@ -304,19 +289,48 @@ async function sendGreeting() {
 }
 
 // ---------- SPEECH RECOGNITION ----------
-// Recognition is created ONLY when user taps mic — never runs in background
-function createRecognition() {
+function setupSpeechRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return null;
+  if (!SR) {
+    setStatus("voice input isn't supported — type instead");
+    $('mic-orb').style.opacity = '0.4';
+    $('mic-orb').style.cursor = 'not-allowed';
+  }
+  killRecognition();
+}
+
+function killRecognition() {
+  if (recognition) {
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch (_) {}
+    recognition = null;
+  }
+  isListening = false;
+  orbWrap.classList.remove('listening');
+  interimPreview.textContent = '';
+}
+
+// Start mic — called after TTS ends (auto) or on tap (manual)
+function startMic() {
+  if (isListening || isSpeaking || isProcessing) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+
+  killRecognition();
   const r = new SR();
-  r.continuous = false;
+  r.continuous = true;        // keep mic open — don't stop after one result
   r.interimResults = true;
   r.lang = 'en-US';
   r.maxAlternatives = 1;
 
   r.onresult = e => {
-    const cooldown = Date.now() - ttsEndedAt < 1500;
-    if (isSpeaking || isProcessing || cooldown) { interimPreview.textContent = ''; return; }
+    // Hard block: discard everything while Alex is speaking or cooldown active
+    if (isSpeaking || isProcessing || (Date.now() - ttsEndedAt < 2000)) {
+      interimPreview.textContent = '';
+      return;
+    }
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const chunk = e.results[i][0].transcript;
@@ -325,6 +339,7 @@ function createRecognition() {
     interimPreview.textContent = interim;
     if (final.trim()) {
       interimPreview.textContent = '';
+      killRecognition();  // stop mic while processing
       handleUserUtterance(final.trim());
     }
   };
@@ -342,47 +357,28 @@ function createRecognition() {
   };
 
   r.onend = () => {
-    isListening = false;
-    orbWrap.classList.remove('listening');
-    interimPreview.textContent = '';
-    setStatus('tap mic or type');
+    // Only update UI if this instance is still the active one
+    if (recognition === r) {
+      isListening = false;
+      orbWrap.classList.remove('listening');
+      interimPreview.textContent = '';
+      if (!isSpeaking && !isProcessing) setStatus('tap mic or type');
+    }
   };
 
-  return r;
-}
-
-function setupSpeechRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    setStatus("voice input isn't supported — type instead");
-    $('mic-orb').style.opacity = '0.4';
-    $('mic-orb').style.cursor = 'not-allowed';
-  }
-  // Kill any existing instance but don't create a new one yet
-  killRecognition();
-}
-
-function killRecognition() {
-  if (recognition) {
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    try { recognition.abort(); } catch (_) {}
+  recognition = r;
+  try {
+    r.start();
+    isListening = true;
+    orbWrap.classList.add('listening');
+    setStatus('listening…');
+  } catch (_) {
     recognition = null;
+    isListening = false;
   }
-  isListening = false;
-  orbWrap.classList.remove('listening');
-  interimPreview.textContent = '';
 }
 
 $('mic-orb').addEventListener('click', () => {
-  if (isListening) {
-    // Stop current session
-    userStopped = true;
-    killRecognition();
-    setStatus('tap mic or type');
-    return;
-  }
   if (isSpeaking) {
     // Interrupt Alex
     window.speechSynthesis.cancel();
@@ -390,17 +386,15 @@ $('mic-orb').addEventListener('click', () => {
     ttsEndedAt = 0;
     orbWrap.classList.remove('speaking');
   }
+  if (isListening) {
+    userStopped = true;
+    killRecognition();
+    setStatus('tap mic or type');
+    return;
+  }
   userStopped = false;
   ttsEndedAt = 0;
-  // Create a fresh recognition instance on every tap
-  recognition = createRecognition();
-  if (!recognition) return;
-  try {
-    recognition.start();
-    isListening = true;
-    orbWrap.classList.add('listening');
-    setStatus('listening…');
-  } catch (_) {}
+  startMic();
 });
 
 $('fallback-send').addEventListener('click', sendFallback);
@@ -583,27 +577,14 @@ function speak(text) {
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1; utter.pitch = 1;
   utter.voice = lockedVoice || null;
-  utter.onstart = () => {};
   utter.onend = () => {
     isSpeaking = false;
     ttsEndedAt = Date.now();
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
-    // Auto-start mic after a delay so speaker audio clears
-    setTimeout(() => {
-      if (!isListening && !isProcessing && !userStopped) {
-        recognition = createRecognition();
-        if (recognition) {
-          try {
-            recognition.start();
-            isListening = true;
-            orbWrap.classList.add('listening');
-            setStatus('listening…');
-          } catch (_) { setStatus('tap mic or type'); }
-        }
-      }
-    }, 1500);
+    // Auto-start mic 2s after TTS ends — matches the onresult cooldown exactly
+    if (!userStopped) setTimeout(() => startMic(), 2000);
   };
   utter.onerror = () => {
     isSpeaking = false;
@@ -611,6 +592,7 @@ function speak(text) {
     orbWrap.classList.remove('speaking');
     interimPreview.textContent = '';
     setStatus('tap mic or type');
+    if (!userStopped) setTimeout(() => startMic(), 2000);
   };
   window.speechSynthesis.speak(utter);
 }
