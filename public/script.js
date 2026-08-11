@@ -97,6 +97,63 @@ function showResumeError(msg) {
   setTimeout(() => el.classList.remove('show'), 5000);
 }
 
+// ── TOAST ──
+function showToast(msg, type = 'info', duration = 3000) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 220); }, duration);
+}
+
+// ── TYPING INDICATOR ──
+let _typingRow = null;
+function showTyping() {
+  if (_typingRow) return;
+  _typingRow = document.createElement('div');
+  _typingRow.className = 'bubble-row ai typing-row';
+  const label = document.createElement('div');
+  label.className = 'role-label';
+  label.textContent = 'alex';
+  const bubble = document.createElement('div');
+  bubble.className = 'typing-bubble';
+  for (let i = 0; i < 3; i++) { const d = document.createElement('div'); d.className = 'typing-dot'; bubble.appendChild(d); }
+  _typingRow.appendChild(label);
+  _typingRow.appendChild(bubble);
+  transcriptEl.appendChild(_typingRow);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+function hideTyping() {
+  if (_typingRow) { _typingRow.remove(); _typingRow = null; }
+}
+
+// ── EMPTY STATE ──
+function showEmptyState() {
+  if (transcriptEl.querySelector('.empty-state')) return;
+  const el = document.createElement('div');
+  el.className = 'empty-state';
+  const icon = document.createElement('div'); icon.className = 'empty-state-icon'; icon.textContent = '🎤';
+  const txt = document.createElement('div'); txt.className = 'empty-state-text'; txt.textContent = 'Alex is getting ready… tap the mic or type to start';
+  el.appendChild(icon); el.appendChild(txt);
+  transcriptEl.appendChild(el);
+}
+function hideEmptyState() {
+  const el = transcriptEl.querySelector('.empty-state');
+  if (el) el.remove();
+}
+
+// ── SKELETON LOADER ──
+function skeletonReport() {
+  const nodes = [];
+  const score = document.createElement('div'); score.className = 'skeleton skeleton-score'; nodes.push(score);
+  ['w-full','w-3q','w-full','w-half','w-3q'].forEach(w => {
+    const l = document.createElement('div'); l.className = `skeleton skeleton-line ${w}`; nodes.push(l);
+  });
+  setDrawerContent(nodes);
+}
+
 // Status helper — shows below chat bar
 let _statusEl = null;
 function setStatus(msg) {
@@ -193,6 +250,7 @@ async function launchApp(key, label) {
   fillerCount = 0;
   transcript = [];
   transcriptEl.innerHTML = '';
+  showEmptyState();
   updateLiveStats();
 
   if (key === 'interview') {
@@ -434,6 +492,7 @@ async function handleUserUtterance(text) {
   transcript.push(turn);
   renderTranscript();
   setStatus('thinking…');
+  showTyping();
 
   try {
     // Build history — must always start with a user message
@@ -499,11 +558,14 @@ async function handleUserUtterance(text) {
       turn.star = parsed.star || null;
       advanceInterviewRound();
     }
+    hideTyping();
     renderTranscript();
     pushAI(replyText);
   } catch (err) {
+    hideTyping();
     transcript.pop();
     renderTranscript();
+    showToast('Connection issue — tap mic or type to retry', 'error');
     setStatus('connection issue — tap mic or type to retry');
   } finally {
     isProcessing = false;
@@ -511,11 +573,12 @@ async function handleUserUtterance(text) {
 }
 
 function pushAI(text) {
+  hideEmptyState();
   text = decodeHtmlEntities(text);
   const aiTurn = { role: 'ai', text, tip: null, tipGood: false, star: null };
   transcript.push(aiTurn);
   renderTranscript();
-  userStopped = false; // reset so mic auto-starts after Alex speaks
+  userStopped = false;
   speak(text);
 }
 
@@ -621,9 +684,11 @@ function pickVoice(voices) {
 // ---------- RENDER ----------
 function renderTranscript() {
   transcriptEl.innerHTML = '';
-  transcript.forEach(t => {
+  const lastIdx = transcript.length - 1;
+  transcript.forEach((t, idx) => {
     const row = document.createElement('div');
     row.className = 'bubble-row ' + (t.role === 'user' ? 'user' : 'ai');
+    if (idx === lastIdx) row.classList.add('new');
     if (t.role === 'ai' && currentTopicKey === 'language') row.classList.add('lang-card');
     const label = document.createElement('div');
     label.className = 'role-label';
@@ -858,7 +923,7 @@ function mkScoreRow(score, color) {
 }
 
 async function loadDeepFeedback() {
-  setDrawerContent([mkEl('p', 'loading-line', 'reading back through what you said...')]);
+  skeletonReport();
   const userText = transcript.filter(t => t.role === 'user').map((t, i) => `${i + 1}. ${t.text}`).join('\n');
   const system = `You are an encouraging but precise English speaking coach. Analyze ONLY the learner's sentences. Respond ONLY with a raw JSON object, no markdown fences:\n{"fluencyScore":<0-100>,"fluencyNote":"<2-3 sentences>","corrections":[{"original":"...","corrected":"...","explanation":"..."}],"vocabulary":[{"basic":"...","upgrade":"...","example":"..."}],"encouragement":"<one warm specific sentence>"}\nMax 5 corrections, max 5 vocabulary. Quote their actual words.`;
   try {
@@ -903,7 +968,7 @@ function renderDeepFeedback(fb) {
 }
 
 async function loadInterviewReport() {
-  setDrawerContent([mkEl('p', 'loading-line', 'compiling your interview report...')]);
+  skeletonReport();
   const qa = transcript.reduce((acc, t, i) => {
     if (t.role === 'ai' && transcript[i + 1]?.role === 'user') acc.push({ q: t.text, a: transcript[i + 1].text, star: transcript[i + 1].star });
     return acc;

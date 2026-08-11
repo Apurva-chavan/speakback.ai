@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SpeakBack — AI Speaking Coach</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,7 +22,7 @@
       <span class="wordmark nav-wordmark">SpeakBack</span>
     </div>
     <div class="nav-right">
-      <span class="nav-badge">Free · Powered by Ollama</span>
+      <span class="nav-badge">Free · Powered by Groq</span>
       <button class="theme-toggle" id="theme-toggle-setup">
         <span class="t-icon">🌙</span><span class="t-label">Dark</span>
       </button>
@@ -278,7 +279,7 @@
     </div>
   </div>
 
-  <p class="mic-note">🎙 Needs microphone · works best in Chrome or Edge · 100% free · powered by Ollama</p>
+  <p class="mic-note">🎙 Needs microphone · works best in Chrome or Edge · 100% free · powered by Groq</p>
 </div>
 
 <!-- ===== APP SCREEN ===== -->
@@ -352,6 +353,7 @@
 </div>
 
 <!-- ===== FEEDBACK DRAWER ===== -->
+<div id="toast-container"></div>
 <div id="overlay"></div>
 <div id="drawer">
   <div class="drawer-handle"></div>

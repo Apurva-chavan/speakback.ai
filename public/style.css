@@ -292,3 +292,50 @@ footer.app-footer{position:sticky;bottom:0;width:100%;background:var(--bg);borde
 .lang-lesson-word{font-family:'IBM Plex Mono',monospace;font-size:.95rem;color:var(--purple);font-weight:600;}
 .lang-lesson-trans{font-size:.83rem;color:var(--ink-soft);margin-top:3px;}
 .lang-lesson-ex{font-size:.8rem;color:var(--ink);margin-top:5px;font-style:italic;}
+
+/* ── BUBBLE ENTRANCE ANIMATION ── */
+@keyframes bubbleIn{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+.bubble-row.new{animation:bubbleIn .22s ease forwards;}
+
+/* ── TYPING INDICATOR (Alex is thinking) ── */
+.typing-row{align-self:flex-start;display:flex;flex-direction:column;align-items:flex-start;}
+.typing-bubble{background:var(--surface);border:1px solid var(--line);border-radius:18px;border-bottom-left-radius:4px;padding:14px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:5px;}
+.typing-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-soft);animation:typingBounce 1.2s ease-in-out infinite;}
+.typing-dot:nth-child(2){animation-delay:.2s;}
+.typing-dot:nth-child(3){animation-delay:.4s;}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-6px);opacity:1;}}
+
+/* ── TOAST NOTIFICATIONS ── */
+#toast-container{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;}
+.toast{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:10px 18px;border-radius:999px;box-shadow:0 4px 20px rgba(0,0,0,.15);pointer-events:none;animation:toastIn .25s ease forwards;white-space:nowrap;}
+.toast.error{background:var(--danger);color:#fff;}
+.toast.success{background:var(--success);color:#fff;}
+.toast.info{background:var(--ink);color:var(--surface);}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes toastOut{from{opacity:1;}to{opacity:0;transform:translateY(6px);}}
+.toast.out{animation:toastOut .2s ease forwards;}
+
+/* ── EMPTY STATE (no messages yet) ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;padding:40px 20px;text-align:center;}
+.empty-state-icon{font-size:2.4rem;opacity:.4;}
+.empty-state-text{font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--ink-soft);line-height:1.6;}
+
+/* ── SKELETON LOADER (report drawer) ── */
+@keyframes shimmer{0%{background-position:-400px 0;}100%{background-position:400px 0;}}
+.skeleton{border-radius:8px;background:linear-gradient(90deg,var(--line) 25%,var(--bg) 50%,var(--line) 75%);background-size:800px 100%;animation:shimmer 1.4s infinite linear;}
+.skeleton-line{height:12px;margin-bottom:10px;}
+.skeleton-line.w-full{width:100%;}
+.skeleton-line.w-3q{width:75%;}
+.skeleton-line.w-half{width:50%;}
+.skeleton-score{height:48px;width:80px;border-radius:12px;margin-bottom:16px;}
+
+/* ── MOBILE POLISH ── */
+@media(max-width:480px){
+  .app-header-right .theme-toggle .t-label{display:none;}
+  .app-header-right .theme-toggle{padding:7px 10px;}
+  .live-stats{display:none;}
+  .topic-pill{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bubble-row{max-width:92%;}
+  header.app-header{padding:10px 14px;}
+  .report-btn .t-label{display:none;}
+}
