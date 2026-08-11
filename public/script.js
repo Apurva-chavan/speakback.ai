@@ -72,6 +72,44 @@ let fillerCount = 0;
 let langXP = 0;
 const FILLERS = ['um', 'uh', 'like', 'you know', 'basically', 'literally', 'actually', 'so', 'right', 'okay'];
 
+// ── SESSION PERSISTENCE ─────────────────────────────────────────────────────────
+const SESSION_KEY = 'sb-session';
+function saveSession() {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      topicKey: currentTopicKey, topicLabel: currentTopicLabel,
+      transcript, wordCount, fillerCount, langXP,
+      interviewConfig, languageConfig, publicConfig,
+      interviewRoundIndex, interviewQuestionInRound, interviewTotalQ
+    }));
+  } catch (_) {}
+}
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+}
+
+// ── OFFLINE BANNER ─────────────────────────────────────────────────────────────
+let _offlineBanner = null;
+function showOfflineBanner(msg) {
+  if (_offlineBanner) return;
+  _offlineBanner = document.createElement('div');
+  _offlineBanner.className = 'offline-banner';
+  _offlineBanner.textContent = msg || '⚠️ Connection lost — check your network';
+  document.body.prepend(_offlineBanner);
+}
+function hideOfflineBanner() {
+  if (_offlineBanner) { _offlineBanner.remove(); _offlineBanner = null; }
+}
+window.addEventListener('online', hideOfflineBanner);
+window.addEventListener('offline', () => showOfflineBanner('⚠️ You are offline — reconnect to continue'));
+
 const $ = id => document.getElementById(id);
 const setupScreen = $('setup-screen');
 const appScreen = $('app-screen');
@@ -181,6 +219,7 @@ document.querySelectorAll('.topic-card').forEach(card => {
 });
 
 $('interview-go').addEventListener('click', async () => {
+  const btn = $('interview-go');
   const role = $('interview-role').value.trim() || 'Software Engineer';
   const industry = $('interview-industry').value;
   const level = $('interview-level').value;
@@ -188,8 +227,9 @@ $('interview-go').addEventListener('click', async () => {
   interviewConfig = { role, industry, level, style };
   resumeText = '';
   if (_resumeFile) {
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
     try {
-      // Ensure CSRF token is ready before upload
       await csrfReady;
       if (!_csrfToken) await refreshCsrfToken();
       const fd = new FormData();
@@ -200,10 +240,14 @@ $('interview-go').addEventListener('click', async () => {
         resumeText = d.text || '';
       } else {
         showResumeError(`Resume upload failed: ${d.error}`);
+        btn.disabled = false;
+        btn.innerHTML = 'Start interview <span aria-hidden="true">→</span>';
         return;
       }
     } catch (_) {
       showResumeError('Could not upload resume — check your connection and try again.');
+      btn.disabled = false;
+      btn.innerHTML = 'Start interview <span aria-hidden="true">→</span>';
       return;
     }
   }
@@ -234,21 +278,24 @@ function goFree() {
   launchApp('free', val);
 }
 
-async function launchApp(key, label) {
+async function launchApp(key, label, restored = false) {
   currentTopicKey = key;
   currentTopicLabel = label;
   topicPill.textContent = label;
   setupScreen.classList.add('hidden');
+  setupScreen.setAttribute('aria-hidden', 'true');
   appScreen.classList.add('show');
+  appScreen.setAttribute('aria-hidden', 'false');
 
-  // reset state
-  interviewRoundIndex = 0;
-  interviewQuestionInRound = 0;
-  interviewTotalQ = 0;
-  userStopped = false;
-  wordCount = 0;
-  fillerCount = 0;
-  transcript = [];
+  if (!restored) {
+    interviewRoundIndex = 0;
+    interviewQuestionInRound = 0;
+    interviewTotalQ = 0;
+    userStopped = false;
+    wordCount = 0;
+    fillerCount = 0;
+    transcript = [];
+  }
   transcriptEl.innerHTML = '';
   showEmptyState();
   updateLiveStats();
@@ -275,12 +322,18 @@ async function launchApp(key, label) {
   setupSpeechRecognition();
   setStatus('connecting…');
 
-  // Ensure CSRF token is ready before the first API call
   await csrfReady;
   if (!_csrfToken) await refreshCsrfToken();
 
   setStatus('tap mic or type to start');
-  sendGreeting();
+
+  if (restored && transcript.length > 0) {
+    renderTranscript();
+    hideEmptyState();
+    setStatus('tap mic or type to continue');
+  } else {
+    sendGreeting();
+  }
 }
 
 $('change-topic-btn').addEventListener('click', () => {
@@ -288,8 +341,11 @@ $('change-topic-btn').addEventListener('click', () => {
   window.speechSynthesis && window.speechSynthesis.cancel();
   isSpeaking = false;
   isProcessing = false;
+  clearSession();
   appScreen.classList.remove('show');
+  appScreen.setAttribute('aria-hidden', 'true');
   setupScreen.classList.remove('hidden');
+  setupScreen.setAttribute('aria-hidden', 'false');
   interviewProgress.classList.remove('show');
   $('lang-bar').classList.remove('show');
   transcript = [];
@@ -371,6 +427,8 @@ function killRecognition() {
   isListening = false;
   orbWrap.classList.remove('listening');
   interimPreview.textContent = '';
+  const micOrb = $('mic-orb');
+  if (micOrb) micOrb.setAttribute('aria-pressed', 'false');
 }
 
 // Start mic — called after TTS ends (auto) or on tap (manual)
@@ -433,6 +491,7 @@ function startMic() {
     isListening = true;
     orbWrap.classList.add('listening');
     setStatus('listening…');
+    $('mic-orb').setAttribute('aria-pressed', 'true');
   } catch (_) {
     recognition = null;
     isListening = false;
@@ -441,7 +500,6 @@ function startMic() {
 
 $('mic-orb').addEventListener('click', () => {
   if (isSpeaking) {
-    // Interrupt Alex
     window.speechSynthesis.cancel();
     isSpeaking = false;
     ttsEndedAt = 0;
@@ -560,13 +618,17 @@ async function handleUserUtterance(text) {
     }
     hideTyping();
     renderTranscript();
+    saveSession();
     pushAI(replyText);
   } catch (err) {
     hideTyping();
     transcript.pop();
     renderTranscript();
-    showToast('Connection issue — tap mic or type to retry', 'error');
-    setStatus('connection issue — tap mic or type to retry');
+    const isOffline = !navigator.onLine;
+    const msg = isOffline ? 'You are offline — reconnect and retry' : 'Connection issue — tap mic or type to retry';
+    if (isOffline) showOfflineBanner();
+    showToast(msg, 'error');
+    setStatus(msg);
   } finally {
     isProcessing = false;
   }
@@ -849,15 +911,38 @@ function decodeHtmlEntities(str) {
 }
 
 function parseJSON(data) {
-  const raw = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { reply: "Let's keep going!", tip: '', tipGood: true };
+  const raw = (Array.isArray(data.content) ? data.content : [])
+    .filter(b => b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string')
+    .map(b => b.text).join('');
   let clean = raw.replace(/```json|```/gi, '').trim();
+
+  function safeExtract(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    return {
+      reply: typeof obj.reply === 'string' ? decodeHtmlEntities(obj.reply) : undefined,
+      tip: typeof obj.tip === 'string' ? decodeHtmlEntities(obj.tip) : undefined,
+      tipGood: typeof obj.tipGood === 'boolean' ? obj.tipGood : undefined,
+      star: (obj.star && typeof obj.star === 'object' && !Array.isArray(obj.star)) ? obj.star : undefined,
+      fluencyScore: typeof obj.fluencyScore === 'number' ? obj.fluencyScore : undefined,
+      fluencyNote: typeof obj.fluencyNote === 'string' ? obj.fluencyNote : undefined,
+      corrections: Array.isArray(obj.corrections) ? obj.corrections : undefined,
+      vocabulary: Array.isArray(obj.vocabulary) ? obj.vocabulary : undefined,
+      encouragement: typeof obj.encouragement === 'string' ? obj.encouragement : undefined,
+      overallScore: typeof obj.overallScore === 'number' ? obj.overallScore : undefined,
+      overallNote: typeof obj.overallNote === 'string' ? obj.overallNote : undefined,
+      strengths: Array.isArray(obj.strengths) ? obj.strengths : undefined,
+      improvements: Array.isArray(obj.improvements) ? obj.improvements : undefined,
+      questionScores: Array.isArray(obj.questionScores) ? obj.questionScores : undefined,
+      hiringVerdict: typeof obj.hiringVerdict === 'string' ? obj.hiringVerdict : undefined,
+    };
+  }
 
   // Try direct parse first
   try {
     const parsed = JSON.parse(clean);
-    if (parsed.reply) parsed.reply = decodeHtmlEntities(parsed.reply);
-    if (parsed.tip) parsed.tip = decodeHtmlEntities(parsed.tip);
-    return parsed;
+    const safe = safeExtract(parsed);
+    if (safe) return safe;
   } catch (_) {}
 
   // Try to find the first complete {...} JSON block
@@ -866,9 +951,8 @@ function parseJSON(data) {
   if (start !== -1 && end !== -1 && end > start) {
     try {
       const parsed = JSON.parse(clean.slice(start, end + 1));
-      if (parsed.reply) parsed.reply = decodeHtmlEntities(parsed.reply);
-      if (parsed.tip) parsed.tip = decodeHtmlEntities(parsed.tip);
-      return parsed;
+      const safe = safeExtract(parsed);
+      if (safe) return safe;
     } catch (_) {}
   }
 
@@ -885,10 +969,13 @@ const drawerBody = $('drawer-body');
 $('open-feedback-btn').addEventListener('click', openDrawer);
 $('drawer-close').addEventListener('click', closeDrawer);
 overlay.addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
 function openDrawer() {
   overlay.classList.add('show');
   drawer.classList.add('show');
+  drawer.setAttribute('aria-hidden', 'false');
+  $('drawer-close').focus();
   const userTurns = transcript.filter(t => t.role === 'user');
   if (userTurns.length === 0) {
     setDrawerContent([mkEl('p', 'empty-note', 'Have a bit of a conversation first, then check back here.')]);
@@ -896,7 +983,11 @@ function openDrawer() {
   }
   currentTopicKey === 'interview' ? loadInterviewReport() : loadDeepFeedback();
 }
-function closeDrawer() { overlay.classList.remove('show'); drawer.classList.remove('show'); }
+function closeDrawer() {
+  overlay.classList.remove('show');
+  drawer.classList.remove('show');
+  drawer.setAttribute('aria-hidden', 'true');
+}
 
 function mkEl(tag, cls, text) {
   const el = document.createElement(tag);
@@ -1016,3 +1107,46 @@ function renderInterviewReport(fb) {
   nodes.push(mkEl('div', 'encourage-box', fb.encouragement || ''));
   setDrawerContent(nodes);
 }
+
+// ---------- SESSION RESTORE ON PAGE LOAD ----------
+(function restoreSessionOnLoad() {
+  const s = loadSession();
+  if (!s || !s.topicKey || !s.transcript || s.transcript.length === 0) return;
+  // Restore state
+  const ALLOWED_TOPIC_KEYS = new Set(['general', 'ielts', 'language', 'public', 'free', 'interview']);
+  if (!ALLOWED_TOPIC_KEYS.has(s.topicKey)) return;
+  currentTopicKey = s.topicKey;
+  currentTopicLabel = typeof s.topicLabel === 'string' ? s.topicLabel.slice(0, 200) : '';
+  transcript = Array.isArray(s.transcript) ? s.transcript.filter(
+    t => t && typeof t.role === 'string' && typeof t.text === 'string'
+  ) : [];
+  wordCount = typeof s.wordCount === 'number' ? s.wordCount : 0;
+  fillerCount = typeof s.fillerCount === 'number' ? s.fillerCount : 0;
+  langXP = typeof s.langXP === 'number' ? s.langXP : 0;
+  if (s.interviewConfig && typeof s.interviewConfig === 'object') {
+    interviewConfig = {
+      role: typeof s.interviewConfig.role === 'string' ? s.interviewConfig.role.slice(0, 100) : '',
+      industry: typeof s.interviewConfig.industry === 'string' ? s.interviewConfig.industry.slice(0, 100) : '',
+      level: typeof s.interviewConfig.level === 'string' ? s.interviewConfig.level.slice(0, 50) : '',
+      style: typeof s.interviewConfig.style === 'string' ? s.interviewConfig.style.slice(0, 50) : ''
+    };
+  }
+  if (s.languageConfig && typeof s.languageConfig === 'object') {
+    languageConfig = {
+      target: typeof s.languageConfig.target === 'string' ? s.languageConfig.target.slice(0, 50) : 'Spanish',
+      level: typeof s.languageConfig.level === 'string' ? s.languageConfig.level.slice(0, 50) : 'complete beginner',
+      focus: typeof s.languageConfig.focus === 'string' ? s.languageConfig.focus.slice(0, 100) : 'everyday conversation'
+    };
+  }
+  if (s.publicConfig && typeof s.publicConfig === 'object') {
+    publicConfig = {
+      type: typeof s.publicConfig.type === 'string' ? s.publicConfig.type.slice(0, 100) : 'persuasive speech',
+      audience: typeof s.publicConfig.audience === 'string' ? s.publicConfig.audience.slice(0, 100) : 'general audience',
+      topic: typeof s.publicConfig.topic === 'string' ? s.publicConfig.topic.slice(0, 200) : ''
+    };
+  }
+  interviewRoundIndex = typeof s.interviewRoundIndex === 'number' ? s.interviewRoundIndex : 0;
+  interviewQuestionInRound = typeof s.interviewQuestionInRound === 'number' ? s.interviewQuestionInRound : 0;
+  interviewTotalQ = typeof s.interviewTotalQ === 'number' ? s.interviewTotalQ : 0;
+  launchApp(s.topicKey, s.topicLabel, true);
+})();

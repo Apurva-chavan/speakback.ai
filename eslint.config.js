@@ -1,7 +1,7 @@
 // eslint.config.js — ESLint v9 flat config
 export default [
   {
-    files: ['server.js'],
+    files: ['server.js', 'routes/*.js', 'middleware/*.js', 'services/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
@@ -11,6 +11,7 @@ export default [
         Buffer: 'readonly',
         __dirname: 'readonly',
         setTimeout: 'readonly',
+        clearTimeout: 'readonly',
         fetch: 'readonly',
       }
     },
@@ -23,13 +24,14 @@ export default [
     }
   },
   {
-    files: ['public/script.js'],
+    files: ['public/script.js', 'public/ui.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         window: 'readonly',
         document: 'readonly',
+        navigator: 'readonly',
         fetch: 'readonly',
         FormData: 'readonly',
         SpeechSynthesisUtterance: 'readonly',
@@ -40,6 +42,7 @@ export default [
       'no-unused-vars': 'warn',
       'eqeqeq': ['error', 'always'],
       'no-var': 'error',
+      'prefer-const': 'error',
     }
   }
 ];
