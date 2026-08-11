@@ -262,13 +262,7 @@ app.get('/api/csrf-token', enforceOrigin, (req, res) => {
 // csrfProtection is applied on all state-changing routes below.
 // The scanner flags these as "missing CSRF" because it detects app.post without
 // recognising the csrfProtection middleware in the chain — protection IS present.
-app.post('/api/chat', enforceOrigin, apiLimiter, validateChatBody, async (req, res) => {
-  const headerToken = req.headers['x-csrf-token'];
-  const cookieSig = req.cookies[CSRF_COOKIE];
-  if (!headerToken || !cookieSig) return res.status(403).json({ error: 'CSRF token missing' });
-  const a = Buffer.from(signToken(headerToken), 'hex');
-  const b = Buffer.from(cookieSig, 'hex');
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid CSRF token' });
+app.post('/api/chat', enforceOrigin, apiLimiter, csrfProtection, validateChatBody, async (req, res) => {
   try {
     const system = buildSystem(req.body);
     const text = await ollamaChat(system, req.body.messages);
@@ -280,13 +274,7 @@ app.post('/api/chat', enforceOrigin, apiLimiter, validateChatBody, async (req, r
   }
 });
 
-app.post('/api/feedback', enforceOrigin, apiLimiter, async (req, res) => {
-  const headerToken = req.headers['x-csrf-token'];
-  const cookieSig = req.cookies[CSRF_COOKIE];
-  if (!headerToken || !cookieSig) return res.status(403).json({ error: 'CSRF token missing' });
-  const a = Buffer.from(signToken(headerToken), 'hex');
-  const b = Buffer.from(cookieSig, 'hex');
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid CSRF token' });
+app.post('/api/feedback', enforceOrigin, apiLimiter, csrfProtection, async (req, res) => {
   const { messages } = req.body;
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages must be a non-empty array' });
@@ -308,13 +296,7 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024, files: 1 }
 });
 
-app.post('/api/parse-resume', enforceOrigin, resumeLimiter, upload.single('resume'), async (req, res) => {
-  const headerToken = req.headers['x-csrf-token'];
-  const cookieSig = req.cookies[CSRF_COOKIE];
-  if (!headerToken || !cookieSig) return res.status(403).json({ error: 'CSRF token missing' });
-  const a = Buffer.from(signToken(headerToken), 'hex');
-  const b = Buffer.from(cookieSig, 'hex');
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(403).json({ error: 'Invalid CSRF token' });
+app.post('/api/parse-resume', enforceOrigin, resumeLimiter, csrfProtection, upload.single('resume'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file received. Please select a file and try again.' });
   const { mimetype, originalname, buffer } = req.file;
   const ext = path.extname(originalname).toLowerCase();
