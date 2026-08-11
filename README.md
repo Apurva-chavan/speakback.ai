@@ -27,9 +27,9 @@ An AI-powered speaking coach that runs in your browser. Real-time voice input, l
 |---|---|
 | Backend | Node.js · Express · Helmet · express-rate-limit · Multer · pdf-parse · mammoth |
 | AI | [Groq API](https://console.groq.com) — `llama-3.1-8b-instant` (free tier) |
-| Frontend | Vanilla JS · Web Speech API (SpeechRecognition + SpeechSynthesis) · CSS custom properties |
-| PWA | Service worker · Web App Manifest |
-| Security | HMAC-signed CSRF tokens · HttpOnly cookies · CSP nonces · same-origin enforcement · rate limiting · prompt injection sanitization |
+| Frontend | Vanilla JS · Web Speech API (SpeechRecognition + SpeechSynthesis) · CSS custom properties · Instrument Serif & Inter typography |
+| PWA | Service worker · Web App Manifest · Offline-first shell |
+| Security | HMAC-signed CSRF tokens · HttpOnly cookies · CSP nonces · same-origin enforcement · rate limiting · prompt injection sanitization · cursor-tracking glow UI |
 
 ---
 
@@ -48,12 +48,14 @@ speakback-app/
 │   ├── groq.js             # Groq API client with 30s timeout + response validation
 │   └── prompts.js          # System prompt builder for all 6 modes
 ├── public/
-│   ├── index.html          # Single-page app shell
+│   ├── index.html          # Single-page app shell with Instrument Serif + Inter fonts
 │   ├── script.js           # All client-side logic (speech, state, API calls, rendering)
-│   ├── ui.js               # Theme toggle, resume upload UI, service worker registration
-│   ├── style.css           # CSS custom properties, dark/light theme, responsive layout
+│   ├── ui.js               # Theme toggle, resume upload UI, glow card effect, SW registration
+│   ├── style.css           # Premium design system — dark default, #6C63FF accent, glow cards
 │   ├── sw.js               # Service worker — offline shell caching
 │   └── manifest.json       # PWA manifest
+├── frontend/               # (Optional) Next.js/Tailwind/Framer Motion landing page
+│   └── ...                 # Standalone app in frontend/ directory
 ├── .env.example            # Environment variable template
 ├── .nvmrc                  # Node version pin
 ├── render.yaml             # One-click Render.com deploy config
