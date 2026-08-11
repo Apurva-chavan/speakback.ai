@@ -1,5 +1,14 @@
 'use strict';
 
+// ── Glow card effect ───────────────────────────────────────────────────────
+document.querySelectorAll('.topic-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty('--mx', (e.clientX - rect.left) + 'px');
+    card.style.setProperty('--my', (e.clientY - rect.top) + 'px');
+  });
+});
+
 // ── Focus chips ────────────────────────────────────────────────────────────
 document.querySelectorAll('.focus-chip').forEach(chip => {
   chip.addEventListener('click', () => {
