@@ -1,8 +1,8 @@
 # SpeakBack — AI Speaking Coach
 
-A full-stack AI-powered speaking coach that runs entirely on your machine. No cloud API keys, no subscriptions — powered by [Ollama](https://ollama.com).
+> Practice speaking. Get better fast.
 
-Practice job interviews, learn a new language, prepare for IELTS/TOEFL, or work on public speaking — all with real-time voice input, live feedback, and detailed session reports.
+An AI-powered speaking coach that runs in your browser. Real-time voice input, live feedback, and detailed session reports — powered by [Groq](https://console.groq.com) (free API).
 
 ---
 
@@ -12,7 +12,7 @@ Practice job interviews, learn a new language, prepare for IELTS/TOEFL, or work 
 |---|---|
 | General conversation | Casual English chat with inline grammar & vocabulary coaching |
 | Job interview prep | Upload your resume for a personalised 5-round mock interview with STAR scoring |
-| Language learning | Structured word-by-word lessons with phonetic guides and XP tracking |
+| Language learning | Word-by-word lessons with phonetic guides and XP tracking |
 | Public speaking | Delivery, structure, pacing, and confidence coaching |
 | IELTS / TOEFL | Examiner-style Part 1, 2, and 3 prompts |
 | Your own topic | Free-form practice on any subject |
@@ -23,17 +23,50 @@ Practice job interviews, learn a new language, prepare for IELTS/TOEFL, or work 
 
 ## Tech stack
 
-- **Backend:** Node.js · Express · Helmet · express-rate-limit · Multer · pdf-parse · mammoth
-- **AI:** [Ollama](https://ollama.com) (local LLM — default: `llama3.2`)
-- **Frontend:** Vanilla JS · Web Speech API (SpeechRecognition + SpeechSynthesis) · CSS custom properties
-- **Security:** HMAC-signed CSRF tokens · HttpOnly cookies · CSP headers · same-origin enforcement · rate limiting · server-side prompt isolation
+| Layer | Technology |
+|---|---|
+| Backend | Node.js · Express · Helmet · express-rate-limit · Multer · pdf-parse · mammoth |
+| AI | [Groq API](https://console.groq.com) — `llama-3.1-8b-instant` (free tier) |
+| Frontend | Vanilla JS · Web Speech API (SpeechRecognition + SpeechSynthesis) · CSS custom properties |
+| PWA | Service worker · Web App Manifest |
+| Security | HMAC-signed CSRF tokens · HttpOnly cookies · CSP nonces · same-origin enforcement · rate limiting · prompt injection sanitization |
+
+---
+
+## Project structure
+
+```
+speakback-app/
+├── server.js               # Entry point — wires middleware, routes, graceful shutdown
+├── middleware/
+│   ├── security.js         # CSRF (HMAC double-submit), nonce, origin enforcement
+│   └── validation.js       # Request body validation, message shape checks
+├── routes/
+│   ├── api.js              # POST /api/chat, POST /api/feedback, GET /api/csrf-token
+│   └── resume.js           # POST /api/parse-resume (PDF/DOCX/TXT upload)
+├── services/
+│   ├── groq.js             # Groq API client with 30s timeout + response validation
+│   └── prompts.js          # System prompt builder for all 6 modes
+├── public/
+│   ├── index.html          # Single-page app shell
+│   ├── script.js           # All client-side logic (speech, state, API calls, rendering)
+│   ├── ui.js               # Theme toggle, resume upload UI, service worker registration
+│   ├── style.css           # CSS custom properties, dark/light theme, responsive layout
+│   ├── sw.js               # Service worker — offline shell caching
+│   └── manifest.json       # PWA manifest
+├── .env.example            # Environment variable template
+├── .nvmrc                  # Node version pin
+├── render.yaml             # One-click Render.com deploy config
+├── eslint.config.js        # ESLint flat config (v9)
+└── package.json
+```
 
 ---
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org) v18 or higher
-- [Ollama](https://ollama.com) installed and running locally
+- A free [Groq API key](https://console.groq.com)
 
 ---
 
@@ -42,20 +75,12 @@ Practice job interviews, learn a new language, prepare for IELTS/TOEFL, or work 
 **1. Clone and install**
 
 ```bash
-git clone https://github.com/your-username/speakback-app.git
-cd speakback-app
+git clone https://github.com/Apurva-chavan/speakback.ai.git
+cd speakback.ai
 npm install
 ```
 
-**2. Pull the model**
-
-```bash
-ollama pull llama3.2
-```
-
-Any Ollama-compatible model works. For better quality try `llama3.1:8b` or `mistral`.
-
-**3. Configure environment**
+**2. Configure environment**
 
 ```bash
 cp .env.example .env
@@ -66,27 +91,34 @@ Edit `.env`:
 ```env
 PORT=3000
 NODE_ENV=development
-OLLAMA_URL=http://localhost:11434/api/chat
-OLLAMA_MODEL=llama3.2
+GROQ_API_KEY=<your-groq-api-key>
+GROQ_MODEL=llama-3.1-8b-instant
 CSRF_SECRET=<generate-with-command-below>
 ```
 
 Generate a strong CSRF secret:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-**4. Start**
+**3. Start**
 
 ```bash
-# Production
-npm start
-
 # Development (auto-restart on file changes)
 npm run dev
+
+# Production
+npm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in Chrome or Edge (required for Web Speech API).
+
+---
+
+## Deploy to Render (one click)
+
+A `render.yaml` is included. Connect your GitHub repo on [render.com](https://render.com), set `GROQ_API_KEY` as a secret env var, and deploy. `CSRF_SECRET` is auto-generated by Render.
 
 ---
 
@@ -94,40 +126,26 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome or Edge (required 
 
 | Layer | Implementation |
 |---|---|
-| CSRF protection | HMAC-SHA256 signed double-submit: sig stored in `HttpOnly SameSite=Strict` cookie; raw token echoed in `X-CSRF-Token` header. `crypto.timingSafeEqual` prevents timing attacks. |
-| Security headers | Helmet with strict CSP, `frame-ancestors: none`, COEP disabled for speech API compatibility |
+| CSRF protection | HMAC-SHA256 signed double-submit: sig stored in `HttpOnly SameSite=Strict` cookie; raw token echoed in `X-CSRF-Token` header. `crypto.timingSafeEqual` prevents timing attacks. `__Host-` cookie prefix in production. |
+| Security headers | Helmet with strict CSP, per-request nonces, `frame-ancestors: none` |
 | Same-origin enforcement | Origin/Referer header validation on every API route |
 | Rate limiting | 30 req/min on chat/feedback, 10 req/min on file upload |
-| Input validation | Topic key allowlist, message shape validation, content length caps |
+| Input validation | Topic key allowlist, message shape + role validation, content length caps, history trimmed to last 20 turns |
+| Prompt injection | All user-supplied config fields (role, industry, language, topic) stripped of `\r\n"'\`` and length-capped before prompt interpolation |
 | File upload | Memory-only storage (no disk writes), 2MB limit, extension + MIME allowlist |
-| Prompt isolation | System prompts never leave the server — client sends context, server builds the full prompt |
+| Deserialization | Groq API response validated with explicit `typeof`/`Array.isArray` checks at every nesting level before any property access |
+| Session restore | All `localStorage` fields type-checked and allowlisted before use |
+| Request timeout | 30-second `AbortController` timeout on every Groq API call |
 | Graceful shutdown | SIGTERM/SIGINT handlers with forced exit timeout |
-
----
-
-## Project structure
-
-```
-speakback-app/
-├── server.js          # Express server — routes, security middleware, Ollama client
-├── public/
-│   ├── index.html     # Single-page app shell
-│   ├── script.js      # All client-side logic (speech, state, API calls, rendering)
-│   └── style.css      # CSS custom properties, dark/light theme, responsive layout
-├── .env.example       # Environment variable template
-├── .nvmrc             # Node version pin
-├── eslint.config.js   # ESLint flat config (v9)
-└── package.json
-```
 
 ---
 
 ## Development
 
 ```bash
-npm run dev      # Start with nodemon
-npm run lint     # ESLint check
-npm run lint:fix # Auto-fix lint issues
+npm run dev       # Start with nodemon (auto-restart)
+npm run lint      # ESLint check
+npm run lint:fix  # Auto-fix lint issues
 ```
 
 ---
@@ -137,16 +155,16 @@ npm run lint:fix # Auto-fix lint issues
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `NODE_ENV` | `development` | Set to `production` to enable secure cookies |
-| `OLLAMA_URL` | `http://localhost:11434/api/chat` | Ollama API endpoint |
-| `OLLAMA_MODEL` | `llama3.2` | Model name |
-| `CSRF_SECRET` | random (ephemeral) | HMAC secret — set this in production or tokens invalidate on restart |
+| `NODE_ENV` | `development` | Set to `production` for secure cookies + HTTPS |
+| `GROQ_API_KEY` | — | **Required.** Get free at [console.groq.com](https://console.groq.com) |
+| `GROQ_MODEL` | `llama-3.1-8b-instant` | Any Groq-compatible model |
+| `CSRF_SECRET` | random (ephemeral) | Set in production or tokens invalidate on restart |
 
 ---
 
 ## Browser support
 
-Requires a browser with Web Speech API support. Chrome and Edge are recommended. Firefox does not support `SpeechRecognition` without a flag.
+Requires Web Speech API support. Chrome and Edge are recommended. Firefox does not support `SpeechRecognition` without a flag.
 
 ---
 

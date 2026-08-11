@@ -1,5 +1,5 @@
-const CACHE = 'speakback-v1';
-const SHELL = ['/', '/style.css', '/script.js', '/manifest.json'];
+const CACHE = 'speakback-v2';
+const SHELL = ['/', '/style.css', '/script.js', '/ui.js', '/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
