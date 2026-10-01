@@ -23,6 +23,29 @@ const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const IS_PROD = process.env.NODE_ENV === 'production';
 
+// ── In-memory analytics (resets on restart) ────────────────────────────────
+const analytics = { requests: 0, errors: 0, startTime: Date.now() };
+setInterval(() => { analytics.requests = 0; analytics.errors = 0; }, 3600000); // Reset hourly
+
+// ── Health check endpoint ──────────────────────────────────────────────────
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.floor((Date.now() - analytics.startTime) / 1000),
+    model: GROQ_MODEL,
+    env: IS_PROD ? 'production' : 'development'
+  });
+});
+
+// ── Analytics endpoint (for dashboard) ────────────────────────────────────
+app.get('/api/analytics', (_req, res) => {
+  res.json({
+    requests: analytics.requests,
+    errors: analytics.errors,
+    uptime: Math.floor((Date.now() - analytics.startTime) / 1000)
+  });
+});
+
 // ── Request logger ─────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   req.id = crypto.randomBytes(6).toString('hex');

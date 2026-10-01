@@ -40,19 +40,25 @@
       <span class="hero-dot"></span>
       AI Speaking Coach
     </div>
-    <h1 class="hero-title" id="hero-heading">Practice speaking.<br><em>Get better fast.</em></h1>
+    <h1 class="hero-title" id="hero-heading">Master your speech.<br><em>Perfect your flow.</em></h1>
     <p class="hero-sub">Alex — your personal AI coach — listens, teaches, corrects, and gives you a full report on fluency, grammar, and confidence.</p>
     <div class="hero-stats" aria-label="App highlights">
-      <div class="hstat"><span class="hstat-val">6</span><span class="hstat-label">Modes</span></div>
+      <div class="hstat"><span class="hstat-val" data-count="6">0</span><span class="hstat-label">Modes</span></div>
       <div class="hstat-div" aria-hidden="true"></div>
-      <div class="hstat"><span class="hstat-val">∞</span><span class="hstat-label">Practice sessions</span></div>
-      <div class="hstat-div" aria-hidden="true"></div>
-      <div class="hstat"><span class="hstat-val">100%</span><span class="hstat-label">Free</span></div>
+      <div class="hstat"><span class="hstat-val"><span data-count="100">0</span>%</span><span class="hstat-label">Free</span></div>
     </div>
   </div>
 
+  <div class="filter-tabs" role="tablist" aria-label="Filter modes">
+    <button class="filter-tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+    <button class="filter-tab" data-filter="everyday" role="tab" aria-selected="false">Everyday</button>
+    <button class="filter-tab" data-filter="career" role="tab" aria-selected="false">Career</button>
+    <button class="filter-tab" data-filter="language" role="tab" aria-selected="false">Language</button>
+    <div class="filter-pill" aria-hidden="true"></div>
+  </div>
+
   <div class="topic-grid" role="list" aria-label="Practice modes">
-    <button class="topic-card" data-topic="general" role="listitem" aria-label="General conversation mode">
+    <button class="topic-card" data-topic="general" data-filters="all everyday" role="listitem" aria-label="General conversation mode">
       <div class="card-top">
         <div class="card-icon-wrap c-general" aria-hidden="true">💬</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -62,7 +68,7 @@
       <p>Casual chat with inline grammar &amp; vocab coaching.</p>
     </button>
 
-    <button class="topic-card c-interview" data-topic="interview" role="listitem" aria-label="Job interview prep mode">
+    <button class="topic-card" data-topic="interview" data-filters="all career" role="listitem" aria-label="Job interview prep mode">
       <div class="card-top">
         <div class="card-icon-wrap c-career" aria-hidden="true">💼</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -72,7 +78,7 @@
       <p>Upload your resume. Get a real interview tailored to your background.</p>
     </button>
 
-    <button class="topic-card" data-topic="language" role="listitem" aria-label="Language learning mode">
+    <button class="topic-card" data-topic="language" data-filters="all language" role="listitem" aria-label="Language learning mode">
       <div class="card-top">
         <div class="card-icon-wrap c-lang" aria-hidden="true">🌍</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -82,7 +88,7 @@
       <p>Structured lessons — phrases, grammar, pronunciation.</p>
     </button>
 
-    <button class="topic-card" data-topic="public" role="listitem" aria-label="Public speaking mode">
+    <button class="topic-card" data-topic="public" data-filters="all career everyday" role="listitem" aria-label="Public speaking mode">
       <div class="card-top">
         <div class="card-icon-wrap c-public" aria-hidden="true">🎤</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -92,7 +98,7 @@
       <p>Speeches, pitches, storytelling. Pacing &amp; confidence scored.</p>
     </button>
 
-    <button class="topic-card" data-topic="ielts" role="listitem" aria-label="IELTS and TOEFL exam prep mode">
+    <button class="topic-card" data-topic="ielts" data-filters="all language" role="listitem" aria-label="IELTS and TOEFL exam prep mode">
       <div class="card-top">
         <div class="card-icon-wrap c-exam" aria-hidden="true">📝</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -102,7 +108,7 @@
       <p>Examiner-style prompts across Part 1, 2, and 3.</p>
     </button>
 
-    <button class="topic-card" data-topic="free" role="listitem" aria-label="Custom topic mode">
+    <button class="topic-card" data-topic="free" data-filters="all everyday" role="listitem" aria-label="Custom topic mode">
       <div class="card-top">
         <div class="card-icon-wrap c-free" aria-hidden="true">✨</div>
         <span class="card-arrow" aria-hidden="true">↗</span>
@@ -307,6 +313,9 @@
       <button class="report-btn" id="open-feedback-btn" aria-label="Open feedback report">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
         Report
+      </button>
+      <button class="export-btn" id="export-btn" aria-label="Export session">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
     </div>
   </header>

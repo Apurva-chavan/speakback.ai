@@ -1,3 +1,91 @@
+// ── USER PROFILE & ACHIEVEMENTS ───────────────────────────────────────────────
+const USER_KEY = 'sb-user';
+const ACHIEVEMENTS = [
+  { id: 'first_chat', name: 'First Steps', desc: 'Complete your first conversation', icon: '🎯', pts: 10 },
+  { id: 'streak_3', name: 'Consistent', desc: '3-day streak', icon: '🔥', pts: 25 },
+  { id: 'streak_7', name: 'Dedicated', desc: '7-day streak', icon: '⭐', pts: 50 },
+  { id: 'streak_30', name: 'Unstoppable', desc: '30-day streak', icon: '💎', pts: 200 },
+  { id: 'words_100', name: 'Word Smith', desc: 'Speak 100 words total', icon: '📝', pts: 20 },
+  { id: 'words_1000', name: 'Vocal', desc: 'Speak 1,000 words total', icon: '🎤', pts: 75 },
+  { id: 'words_5000', name: 'Eloquent', desc: 'Speak 5,000 words total', icon: '🏆', pts: 150 },
+  { id: 'xp_100', name: 'Rising Star', desc: 'Earn 100 XP', icon: '✨', pts: 30 },
+  { id: 'xp_500', name: 'Scholar', desc: 'Earn 500 XP', icon: '📚', pts: 100 },
+  { id: 'interview_5', name: 'Interview Pro', desc: 'Complete 5 mock interviews', icon: '💼', pts: 75 },
+  { id: 'lang_50', name: 'Polyglot', desc: 'Learn 50 words in any language', icon: '🌍', pts: 100 },
+  { id: 'no_filler', name: 'Smooth Talker', desc: 'Complete a session with 0 filler words', icon: '🎯', pts: 50 }
+];
+
+let userProfile = loadUserProfile();
+
+function loadUserProfile() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return createUserProfile();
+    const p = JSON.parse(raw);
+    return {
+      name: p.name || 'Learner',
+      totalWords: p.totalWords || 0,
+      totalSessions: p.totalSessions || 0,
+      totalXP: p.totalXP || 0,
+      streak: p.streak || 0,
+      lastActive: p.lastActive || null,
+      achievements: p.achievements || [],
+      interviewCount: p.interviewCount || 0,
+      langWords: p.langWords || 0
+    };
+  } catch (_) { return createUserProfile(); }
+}
+
+function createUserProfile() {
+  return { name: 'Learner', totalWords: 0, totalSessions: 0, totalXP: 0, streak: 0, lastActive: null, achievements: [], interviewCount: 0, langWords: 0 };
+}
+
+function saveUserProfile() {
+  try { localStorage.setItem(USER_KEY, JSON.stringify(userProfile)); } catch (_) {}
+}
+
+function updateStreak() {
+  const today = new Date().toDateString();
+  const lastActive = userProfile.lastActive;
+  if (!lastActive) {
+    userProfile.streak = 1;
+  } else {
+    const last = new Date(lastActive);
+    const diff = Math.floor((Date.now() - last.getTime()) / 86400000);
+    if (diff === 0) return; // same day
+    if (diff === 1) userProfile.streak++;
+    else userProfile.streak = 1;
+  }
+  userProfile.lastActive = today;
+  checkAchievements();
+  saveUserProfile();
+}
+
+function checkAchievements() {
+  const unlocked = new Set(userProfile.achievements);
+  if (!unlocked.has('first_chat') && userProfile.totalSessions >= 1) unlockAchievement('first_chat');
+  if (!unlocked.has('streak_3') && userProfile.streak >= 3) unlockAchievement('streak_3');
+  if (!unlocked.has('streak_7') && userProfile.streak >= 7) unlockAchievement('streak_7');
+  if (!unlocked.has('streak_30') && userProfile.streak >= 30) unlockAchievement('streak_30');
+  if (!unlocked.has('words_100') && userProfile.totalWords >= 100) unlockAchievement('words_100');
+  if (!unlocked.has('words_1000') && userProfile.totalWords >= 1000) unlockAchievement('words_1000');
+  if (!unlocked.has('words_5000') && userProfile.totalWords >= 5000) unlockAchievement('words_5000');
+  if (!unlocked.has('xp_100') && userProfile.totalXP >= 100) unlockAchievement('xp_100');
+  if (!unlocked.has('xp_500') && userProfile.totalXP >= 500) unlockAchievement('xp_500');
+  if (!unlocked.has('interview_5') && userProfile.interviewCount >= 5) unlockAchievement('interview_5');
+  if (!unlocked.has('lang_50') && userProfile.langWords >= 50) unlockAchievement('lang_50');
+}
+
+function unlockAchievement(id) {
+  if (userProfile.achievements.includes(id)) return;
+  const ach = ACHIEVEMENTS.find(a => a.id === id);
+  if (!ach) return;
+  userProfile.achievements.push(id);
+  userProfile.totalXP += ach.pts;
+  showToast(`🏆 Achievement unlocked: ${ach.name} (+${ach.pts} XP)`, 'success', 4000);
+  saveUserProfile();
+}
+
 const topicMeta = {
   general: {
     label: "General conversation",
@@ -967,6 +1055,7 @@ const drawer = $('drawer');
 const drawerBody = $('drawer-body');
 
 $('open-feedback-btn').addEventListener('click', openDrawer);
+$('export-btn').addEventListener('click', exportSession);
 $('drawer-close').addEventListener('click', closeDrawer);
 overlay.addEventListener('click', closeDrawer);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
@@ -1107,6 +1196,85 @@ function renderInterviewReport(fb) {
   nodes.push(mkEl('div', 'encourage-box', fb.encouragement || ''));
   setDrawerContent(nodes);
 }
+
+// ---------- SESSION EXPORT ----------
+function exportSession() {
+  if (transcript.length === 0) {
+    showToast('No session data to export', 'info');
+    return;
+  }
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  
+  // Build plain text report
+  let report = `SPEAKBACK SESSION REPORT\n`;
+  report += `========================\n\n`;
+  report += `Topic: ${currentTopicLabel}\n`;
+  report += `Date: ${dateStr} at ${timeStr}\n`;
+  report += `Duration: ~${Math.ceil(transcript.length * 0.5)} minutes\n`;
+  report += `Words spoken: ${wordCount}\n`;
+  report += `Filler words: ${fillerCount}\n`;
+  if (currentTopicKey === 'language') report += `XP earned: ${langXP}\n`;
+  report += `\n--- TRANSCRIPT ---\n\n`;
+  
+  transcript.forEach((t, i) => {
+    const speaker = t.role === 'user' ? 'YOU' : 'ALEX';
+    report += `[${speaker}]\n${t.text}\n\n`;
+  });
+  
+  report += `--- END OF SESSION ---\n`;
+  report += `Generated by SpeakBack AI Speaking Coach`;
+  
+  // Download as text file
+  const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `speakback-session-${now.toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Session exported successfully!', 'success');
+}
+
+// ---------- PRONUNCIATION ANALYZER ----------
+function analyzePronunciation(spoken, target) {
+  const s = spoken.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const t = target.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (s === t) return { score: 100, phonemes: [{ char: t, status: 'correct' }] };
+  
+  const maxLen = Math.max(s.length, t.length);
+  let correct = 0;
+  const phonemes = [];
+  
+  for (let i = 0; i < maxLen; i++) {
+    if (s[i] === t[i]) {
+      correct++;
+      phonemes.push({ char: t[i], status: 'correct' });
+    } else if (s[i] && t[i]) {
+      phonemes.push({ char: t[i], status: 'incorrect', got: s[i] });
+    }
+  }
+  
+  const score = Math.round((correct / t.length) * 100);
+  return { score, phonemes: phonemes.slice(0, 10) };
+}
+
+// ---------- KEYBOARD SHORTCUTS ----------
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'm' && !e.ctrlKey && !e.metaKey) {
+    $('mic-orb').click(); // Toggle mic
+  }
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+    openDrawer(); // Open report
+  }
+  if (e.key === 'Escape') {
+    closeDrawer();
+  }
+});
 
 // ---------- SESSION RESTORE ON PAGE LOAD ----------
 (function restoreSessionOnLoad() {
