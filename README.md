@@ -2,6 +2,8 @@
 
 > Practice speaking. Get better fast.
 
+**Live demo:** [speakback-ai.onrender.com](https://speakback-ai.onrender.com)
+
 An AI-powered speaking coach that runs in your browser. Real-time voice input, live feedback, and detailed session reports — powered by [Groq](https://console.groq.com) (free API).
 
 ---
